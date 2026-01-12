@@ -11,7 +11,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { NAV_ITEMS } from "@/lib/constants";
+import { LANDING_NAV_ITEMS } from "@/lib/constants";
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -29,7 +29,7 @@ export default function Navbar() {
 
         {/* Desktop Navigation */}
         <nav className="hidden items-center gap-6 md:flex">
-          {NAV_ITEMS.map((item) => (
+          {LANDING_NAV_ITEMS.map((item) => (
             <Link
               key={item.href}
               href={item.href}
@@ -65,7 +65,7 @@ export default function Navbar() {
               </SheetTitle>
             </SheetHeader>
             <nav className="mt-8 flex flex-col gap-4">
-              {NAV_ITEMS.map((item) => (
+              {LANDING_NAV_ITEMS.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}

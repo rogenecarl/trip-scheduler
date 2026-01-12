@@ -20,7 +20,7 @@ const config: runtime.GetPrismaClientConfig = {
   "clientVersion": "7.2.0",
   "engineVersion": "0c8ef2ce45c83248ab3df073180d5eda9e8be7a3",
   "activeProvider": "postgresql",
-  "inlineSchema": "// This is your Prisma schema file,\n// learn more about it in the docs: https://pris.ly/d/prisma-schema\n\n// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?\n// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init\n\ngenerator client {\n  provider = \"prisma-client\"\n  output   = \"../src/lib/generated/prisma\"\n}\n\ndatasource db {\n  provider = \"postgresql\"\n}\n",
+  "inlineSchema": "// Trip Scheduler - Peak Transport\n// Prisma 7 Schema\n\ngenerator client {\n  provider = \"prisma-client\"\n  output   = \"../src/lib/generated/prisma\"\n}\n\ndatasource db {\n  provider = \"postgresql\"\n}\n\n// ============================================\n// ENUMS\n// ============================================\n\nenum UploadStatus {\n  PENDING\n  PROCESSING\n  COMPLETED\n  FAILED\n}\n\n// ============================================\n// DRIVER MANAGEMENT\n// ============================================\n\nmodel Driver {\n  id        String   @id @default(cuid())\n  name      String\n  isActive  Boolean  @default(true)\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  availability DriverAvailability[]\n  assignments  TripAssignment[]\n\n  @@index([name])\n  @@index([isActive])\n}\n\nmodel DriverAvailability {\n  id          String  @id @default(cuid())\n  driverId    String\n  dayOfWeek   Int // 0 = Sunday, 1 = Monday, ... 6 = Saturday\n  isAvailable Boolean @default(true)\n\n  // Relations\n  driver Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)\n\n  @@unique([driverId, dayOfWeek])\n  @@index([dayOfWeek])\n  @@index([isAvailable])\n}\n\n// ============================================\n// TRIP MANAGEMENT\n// ============================================\n\nmodel WeekUpload {\n  id            String       @id @default(cuid())\n  fileName      String\n  uploadedAt    DateTime     @default(now())\n  status        UploadStatus @default(PENDING)\n  totalTrips    Int          @default(0)\n  assignedTrips Int          @default(0)\n\n  // Relations\n  trips Trip[]\n\n  @@index([uploadedAt])\n  @@index([status])\n}\n\nmodel Trip {\n  id        String   @id @default(cuid())\n  tripId    String   @unique // e.g., \"T-115JCVWMY\" - UNIQUE (same Trip ID = 1 driver)\n  tripDate  DateTime // From \"Stop 1 Planned Arrival Date\"\n  dayOfWeek Int // 0-6, derived from tripDate\n  tripStage String   @default(\"Upcoming\") // \"Upcoming\" or \"Canceled\"\n\n  // Optional: Link to CSV upload (null if manually added)\n  weekUploadId String?\n  createdAt    DateTime @default(now())\n\n  // Relations\n  weekUpload WeekUpload?     @relation(fields: [weekUploadId], references: [id], onDelete: Cascade)\n  assignment TripAssignment?\n\n  @@index([tripDate])\n  @@index([dayOfWeek])\n  @@index([tripStage])\n}\n\nmodel TripAssignment {\n  id             String   @id @default(cuid())\n  tripId         String   @unique\n  driverId       String\n  assignedAt     DateTime @default(now())\n  isAutoAssigned Boolean  @default(false) // true if assigned by AI, false if manual\n  aiReasoning    String?  @db.Text\n\n  // Relations\n  trip   Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)\n  driver Driver @relation(fields: [driverId], references: [id])\n\n  @@index([driverId])\n}\n\n// ============================================\n// AI CHAT HISTORY\n// ============================================\n\nmodel ChatMessage {\n  id        String   @id @default(cuid())\n  sessionId String\n  role      String // \"user\" or \"assistant\"\n  content   String   @db.Text\n  createdAt DateTime @default(now())\n\n  @@index([sessionId])\n}\n",
   "runtimeDataModel": {
     "models": {},
     "enums": {},
@@ -28,7 +28,7 @@ const config: runtime.GetPrismaClientConfig = {
   }
 }
 
-config.runtimeDataModel = JSON.parse("{\"models\":{},\"enums\":{},\"types\":{}}")
+config.runtimeDataModel = JSON.parse("{\"models\":{\"Driver\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"isActive\",\"kind\":\"scalar\",\"type\":\"Boolean\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"availability\",\"kind\":\"object\",\"type\":\"DriverAvailability\",\"relationName\":\"DriverToDriverAvailability\"},{\"name\":\"assignments\",\"kind\":\"object\",\"type\":\"TripAssignment\",\"relationName\":\"DriverToTripAssignment\"}],\"dbName\":null},\"DriverAvailability\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"driverId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"dayOfWeek\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"isAvailable\",\"kind\":\"scalar\",\"type\":\"Boolean\"},{\"name\":\"driver\",\"kind\":\"object\",\"type\":\"Driver\",\"relationName\":\"DriverToDriverAvailability\"}],\"dbName\":null},\"WeekUpload\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"fileName\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"uploadedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"status\",\"kind\":\"enum\",\"type\":\"UploadStatus\"},{\"name\":\"totalTrips\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"assignedTrips\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"trips\",\"kind\":\"object\",\"type\":\"Trip\",\"relationName\":\"TripToWeekUpload\"}],\"dbName\":null},\"Trip\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"tripId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"tripDate\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"dayOfWeek\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"tripStage\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"weekUploadId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"weekUpload\",\"kind\":\"object\",\"type\":\"WeekUpload\",\"relationName\":\"TripToWeekUpload\"},{\"name\":\"assignment\",\"kind\":\"object\",\"type\":\"TripAssignment\",\"relationName\":\"TripToTripAssignment\"}],\"dbName\":null},\"TripAssignment\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"tripId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"driverId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"assignedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"isAutoAssigned\",\"kind\":\"scalar\",\"type\":\"Boolean\"},{\"name\":\"aiReasoning\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"trip\",\"kind\":\"object\",\"type\":\"Trip\",\"relationName\":\"TripToTripAssignment\"},{\"name\":\"driver\",\"kind\":\"object\",\"type\":\"Driver\",\"relationName\":\"DriverToTripAssignment\"}],\"dbName\":null},\"ChatMessage\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"sessionId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"role\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"content\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"}],\"dbName\":null}},\"enums\":{},\"types\":{}}")
 
 async function decodeBase64AsWasm(wasmBase64: string): Promise<WebAssembly.Module> {
   const { Buffer } = await import('node:buffer')
@@ -58,8 +58,8 @@ export interface PrismaClientConstructor {
    * @example
    * ```
    * const prisma = new PrismaClient()
-   * // Fetch zero or more Users
-   * const users = await prisma.user.findMany()
+   * // Fetch zero or more Drivers
+   * const drivers = await prisma.driver.findMany()
    * ```
    * 
    * Read more in our [docs](https://pris.ly/d/client).
@@ -80,8 +80,8 @@ export interface PrismaClientConstructor {
  * @example
  * ```
  * const prisma = new PrismaClient()
- * // Fetch zero or more Users
- * const users = await prisma.user.findMany()
+ * // Fetch zero or more Drivers
+ * const drivers = await prisma.driver.findMany()
  * ```
  * 
  * Read more in our [docs](https://pris.ly/d/client).
@@ -174,7 +174,65 @@ export interface PrismaClient<
     extArgs: ExtArgs
   }>>
 
-    
+      /**
+   * `prisma.driver`: Exposes CRUD operations for the **Driver** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Drivers
+    * const drivers = await prisma.driver.findMany()
+    * ```
+    */
+  get driver(): Prisma.DriverDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.driverAvailability`: Exposes CRUD operations for the **DriverAvailability** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more DriverAvailabilities
+    * const driverAvailabilities = await prisma.driverAvailability.findMany()
+    * ```
+    */
+  get driverAvailability(): Prisma.DriverAvailabilityDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.weekUpload`: Exposes CRUD operations for the **WeekUpload** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more WeekUploads
+    * const weekUploads = await prisma.weekUpload.findMany()
+    * ```
+    */
+  get weekUpload(): Prisma.WeekUploadDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.trip`: Exposes CRUD operations for the **Trip** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Trips
+    * const trips = await prisma.trip.findMany()
+    * ```
+    */
+  get trip(): Prisma.TripDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.tripAssignment`: Exposes CRUD operations for the **TripAssignment** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more TripAssignments
+    * const tripAssignments = await prisma.tripAssignment.findMany()
+    * ```
+    */
+  get tripAssignment(): Prisma.TripAssignmentDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.chatMessage`: Exposes CRUD operations for the **ChatMessage** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more ChatMessages
+    * const chatMessages = await prisma.chatMessage.findMany()
+    * ```
+    */
+  get chatMessage(): Prisma.ChatMessageDelegate<ExtArgs, { omit: OmitOpts }>;
 }
 
 export function getPrismaClientClass(): PrismaClientConstructor {

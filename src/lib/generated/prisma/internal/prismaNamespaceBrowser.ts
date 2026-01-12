@@ -51,7 +51,12 @@ export const AnyNull = runtime.AnyNull
 
 
 export const ModelName = {
-
+  Driver: 'Driver',
+  DriverAvailability: 'DriverAvailability',
+  WeekUpload: 'WeekUpload',
+  Trip: 'Trip',
+  TripAssignment: 'TripAssignment',
+  ChatMessage: 'ChatMessage'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -68,4 +73,97 @@ export const TransactionIsolationLevel = {
 } as const
 
 export type TransactionIsolationLevel = (typeof TransactionIsolationLevel)[keyof typeof TransactionIsolationLevel]
+
+
+export const DriverScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  isActive: 'isActive',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type DriverScalarFieldEnum = (typeof DriverScalarFieldEnum)[keyof typeof DriverScalarFieldEnum]
+
+
+export const DriverAvailabilityScalarFieldEnum = {
+  id: 'id',
+  driverId: 'driverId',
+  dayOfWeek: 'dayOfWeek',
+  isAvailable: 'isAvailable'
+} as const
+
+export type DriverAvailabilityScalarFieldEnum = (typeof DriverAvailabilityScalarFieldEnum)[keyof typeof DriverAvailabilityScalarFieldEnum]
+
+
+export const WeekUploadScalarFieldEnum = {
+  id: 'id',
+  fileName: 'fileName',
+  uploadedAt: 'uploadedAt',
+  status: 'status',
+  totalTrips: 'totalTrips',
+  assignedTrips: 'assignedTrips'
+} as const
+
+export type WeekUploadScalarFieldEnum = (typeof WeekUploadScalarFieldEnum)[keyof typeof WeekUploadScalarFieldEnum]
+
+
+export const TripScalarFieldEnum = {
+  id: 'id',
+  tripId: 'tripId',
+  tripDate: 'tripDate',
+  dayOfWeek: 'dayOfWeek',
+  tripStage: 'tripStage',
+  weekUploadId: 'weekUploadId',
+  createdAt: 'createdAt'
+} as const
+
+export type TripScalarFieldEnum = (typeof TripScalarFieldEnum)[keyof typeof TripScalarFieldEnum]
+
+
+export const TripAssignmentScalarFieldEnum = {
+  id: 'id',
+  tripId: 'tripId',
+  driverId: 'driverId',
+  assignedAt: 'assignedAt',
+  isAutoAssigned: 'isAutoAssigned',
+  aiReasoning: 'aiReasoning'
+} as const
+
+export type TripAssignmentScalarFieldEnum = (typeof TripAssignmentScalarFieldEnum)[keyof typeof TripAssignmentScalarFieldEnum]
+
+
+export const ChatMessageScalarFieldEnum = {
+  id: 'id',
+  sessionId: 'sessionId',
+  role: 'role',
+  content: 'content',
+  createdAt: 'createdAt'
+} as const
+
+export type ChatMessageScalarFieldEnum = (typeof ChatMessageScalarFieldEnum)[keyof typeof ChatMessageScalarFieldEnum]
+
+
+export const SortOrder = {
+  asc: 'asc',
+  desc: 'desc'
+} as const
+
+export type SortOrder = (typeof SortOrder)[keyof typeof SortOrder]
+
+
+export const QueryMode = {
+  default: 'default',
+  insensitive: 'insensitive'
+} as const
+
+export type QueryMode = (typeof QueryMode)[keyof typeof QueryMode]
+
+
+export const NullsOrder = {
+  first: 'first',
+  last: 'last'
+} as const
+
+export type NullsOrder = (typeof NullsOrder)[keyof typeof NullsOrder]
 

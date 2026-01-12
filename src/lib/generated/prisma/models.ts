@@ -8,4 +8,10 @@
  *
  * 🟢 You can import this file directly.
  */
+export type * from './models/Driver'
+export type * from './models/DriverAvailability'
+export type * from './models/WeekUpload'
+export type * from './models/Trip'
+export type * from './models/TripAssignment'
+export type * from './models/ChatMessage'
 export type * from './commonInputTypes'

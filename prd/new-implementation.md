@@ -26,6 +26,173 @@
 
 ---
 
+## Database Schema (Prisma 7)
+
+> **Note**: Using Prisma 7 with `@prisma/adapter-pg` for PostgreSQL connection pooling.
+> Generated client location: `src/lib/generated/prisma` (already configured)
+
+```prisma
+// prisma/schema.prisma
+// Trip Scheduler - Peak Transport
+// NOTE: generator and datasource already configured - just add models
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum UploadStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+// ============================================
+// DRIVER MANAGEMENT
+// ============================================
+
+model Driver {
+  id           String    @id @default(cuid())
+  name         String
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Relations
+  availability DriverAvailability[]
+  assignments  TripAssignment[]
+
+  @@index([name])
+  @@index([isActive])
+}
+
+model DriverAvailability {
+  id          String   @id @default(cuid())
+  driverId    String
+  dayOfWeek   Int      // 0 = Sunday, 1 = Monday, ... 6 = Saturday
+  isAvailable Boolean  @default(true)
+
+  // Relations
+  driver      Driver   @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@unique([driverId, dayOfWeek])
+  @@index([dayOfWeek])
+  @@index([isAvailable])
+}
+
+// ============================================
+// TRIP MANAGEMENT
+// ============================================
+
+model WeekUpload {
+  id            String       @id @default(cuid())
+  fileName      String
+  uploadedAt    DateTime     @default(now())
+  status        UploadStatus @default(PENDING)
+  totalTrips    Int          @default(0)
+  assignedTrips Int          @default(0)
+
+  // Relations
+  trips         Trip[]
+
+  @@index([uploadedAt])
+  @@index([status])
+}
+
+model Trip {
+  id            String    @id @default(cuid())
+
+  // Core fields
+  tripId        String    @unique  // e.g., "T-115JCVWMY" - UNIQUE (same Trip ID = 1 driver)
+  tripDate      DateTime  // From "Stop 1 Planned Arrival Date"
+  dayOfWeek     Int       // 0-6, derived from tripDate
+  tripStage     String    @default("Upcoming") // "Upcoming" or "Canceled"
+
+  // Optional: Link to CSV upload (null if manually added)
+  weekUploadId  String?
+  createdAt     DateTime  @default(now())
+
+  // Relations
+  weekUpload    WeekUpload?    @relation(fields: [weekUploadId], references: [id], onDelete: Cascade)
+  assignment    TripAssignment?
+
+  @@index([tripDate])
+  @@index([dayOfWeek])
+  @@index([tripStage])
+}
+
+model TripAssignment {
+  id             String   @id @default(cuid())
+  tripId         String   @unique
+  driverId       String
+  assignedAt     DateTime @default(now())
+  isAutoAssigned Boolean  @default(false) // true if assigned by AI, false if manual
+  aiReasoning    String?  @db.Text
+
+  // Relations
+  trip           Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  driver         Driver   @relation(fields: [driverId], references: [id])
+
+  @@index([driverId])
+}
+
+// ============================================
+// AI CHAT HISTORY
+// ============================================
+
+model ChatMessage {
+  id          String   @id @default(cuid())
+  sessionId   String
+  role        String   // "user" or "assistant"
+  content     String   @db.Text
+  createdAt   DateTime @default(now())
+
+  @@index([sessionId])
+}
+```
+
+### Schema Summary
+
+| Model | Purpose | Key Fields |
+|-------|---------|------------|
+| **Driver** | Driver info | `name`, `isActive` |
+| **DriverAvailability** | Days driver works | `dayOfWeek` (0-6), `isAvailable` |
+| **WeekUpload** | Track CSV imports | `fileName`, `status`, `totalTrips` |
+| **Trip** | Trip to assign | `tripId` (unique), `tripDate`, `dayOfWeek` |
+| **TripAssignment** | Driver ↔ Trip link | `driverId`, `tripId`, `aiReasoning` |
+| **ChatMessage** | AI chat history | `role`, `content`, `sessionId` |
+
+### Day of Week Reference
+
+| Value | Day |
+|-------|-----|
+| 0 | Sunday |
+| 1 | Monday |
+| 2 | Tuesday |
+| 3 | Wednesday |
+| 4 | Thursday |
+| 5 | Friday |
+| 6 | Saturday |
+
+### Key Design Decisions (Based on Client Requirements)
+
+1. **No time fields** - Only dates matter for trips and availability
+2. **Trip ID is unique** - Same Trip ID = same driver (grouped as 1 trip)
+3. **Day-based availability** - Drivers available on specific days (not hours)
+4. **Soft delete for drivers** - `isActive` flag instead of hard delete
+
+---
+
 ## Design System
 
 ### Design Principles
@@ -368,6 +535,7 @@ src/
 │       └── page.tsx                  # AI chat (optional)
 │
 ├── actions/
+│   ├── dashboard-actions.ts          # Dashboard stats server actions
 │   ├── driver-actions.ts             # Driver CRUD server actions
 │   ├── trip-actions.ts               # Trip CRUD server actions
 │   ├── assignment-actions.ts         # Assignment server actions
@@ -426,10 +594,11 @@ src/
 │       └── chat-input.tsx            # Input with send button
 │
 ├── hooks/
-│   ├── use-drivers.ts                # Driver state with server actions
-│   ├── use-trips.ts                  # Trip state with server actions
-│   ├── use-assignments.ts            # Assignment state with server actions
-│   ├── use-ai-assign.ts              # AI assignment hook
+│   ├── use-drivers.ts                # Driver queries & mutations (TanStack Query + Server Actions)
+│   ├── use-trips.ts                  # Trip queries & mutations
+│   ├── use-assignments.ts            # Assignment queries & mutations
+│   ├── use-dashboard.ts              # Dashboard queries
+│   ├── use-ai-assign.ts              # AI assignment mutation
 │   ├── use-chat.ts                   # Chat functionality
 │   └── use-mobile.ts                 # Mobile detection
 │
@@ -437,12 +606,16 @@ src/
 │   ├── utils.ts                      # Utility functions
 │   ├── types.ts                      # TypeScript interfaces
 │   ├── constants.ts                  # App constants
+│   ├── query-keys.ts                 # TanStack Query keys
 │   ├── gemini.ts                     # Gemini AI client
 │   ├── csv-parser.ts                 # CSV parsing logic
 │   └── prisma.ts                     # Prisma client
 │
 ├── store/
 │   └── app-store.ts                  # Zustand store
+│
+├── context/
+│   └── QueryProvider.tsx             # TanStack Query provider (already exists)
 │
 └── prisma/
     └── schema.prisma                 # Database schema
@@ -488,7 +661,7 @@ export interface TripAssignment {
   driverId: string;
   driver?: Driver;
   assignedAt: Date;
-  isAutoAssigned: boolean;
+  isAutoAssigned: boolean; // true = AI assigned, false = manual
   aiReasoning?: string;
 }
 
@@ -507,6 +680,11 @@ export interface ChatMessage {
   content: string;
   createdAt: Date;
 }
+
+// Server Action Response Type
+export type ActionResponse<T> =
+  | { success: true; data: T; error?: never }
+  | { success: false; error: string; data?: never };
 
 // Helper types
 export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
@@ -904,6 +1082,125 @@ export const DAY_NAMES_SHORT = [
 
 ## Implementation Phases
 
+### Phase 0: Project Setup & Database
+
+**Prompt for Claude Code CLI**:
+
+```
+Set up the Trip Scheduler project database models and type definitions.
+
+ALREADY CONFIGURED (do not modify):
+- Next.js 16 with App Router
+- TypeScript strict mode
+- Tailwind CSS 4
+- src/ directory structure
+- lib/prisma.ts - Prisma 7 with @prisma/adapter-pg (default export)
+- lib/gemini.ts - Google GenAI with gemini-2.5-flash (exports: genAI, MODEL_NAME)
+- context/QueryProvider.tsx - TanStack Query provider (default export)
+- Prisma generator and datasource already configured
+
+REQUIREMENTS:
+
+1. Prisma Schema (prisma/schema.prisma):
+Add the following models to the existing schema:
+  • Driver (id, name, isActive, timestamps)
+  • DriverAvailability (id, driverId, dayOfWeek 0-6, isAvailable)
+  • WeekUpload (id, fileName, uploadedAt, status enum, totalTrips, assignedTrips)
+  • Trip (id, tripId unique, tripDate, dayOfWeek, tripStage, weekUploadId optional)
+  • TripAssignment (id, tripId unique, driverId, assignedAt, isAutoAssigned, aiReasoning)
+  • ChatMessage (id, sessionId, role, content, createdAt)
+
+2. Environment Variables (.env.local):
+```env
+DATABASE_URL="postgresql://..."
+GEMINI_API_KEY="your-gemini-api-key"
+```
+
+3. Base Dependencies:
+```bash
+pnpm add date-fns papaparse zustand
+pnpm add -D @types/papaparse
+```
+Note: @tanstack/react-query already installed via QueryProvider
+
+4. Initialize Database:
+```bash
+pnpm prisma generate
+pnpm prisma migrate dev --name init
+```
+
+5. Type Definitions (lib/types.ts):
+- Export TypeScript interfaces matching Prisma models
+- Add helper types (DayOfWeek, DAY_NAMES, DAY_NAMES_SHORT)
+
+6. Constants (lib/constants.ts):
+- DAY_NAMES array
+- DAY_NAMES_SHORT array
+- Status colors mapping
+
+7. Query Keys (lib/query-keys.ts):
+```typescript
+export const queryKeys = {
+  drivers: {
+    all: ["drivers"] as const,
+    list: () => [...queryKeys.drivers.all, "list"] as const,
+    detail: (id: string) => [...queryKeys.drivers.all, "detail", id] as const,
+  },
+  trips: {
+    all: ["trips"] as const,
+    list: () => [...queryKeys.trips.all, "list"] as const,
+    detail: (id: string) => [...queryKeys.trips.all, "detail", id] as const,
+  },
+  assignments: {
+    all: ["assignments"] as const,
+    list: () => [...queryKeys.assignments.all, "list"] as const,
+    stats: () => [...queryKeys.assignments.all, "stats"] as const,
+  },
+  dashboard: {
+    all: ["dashboard"] as const,
+    stats: () => [...queryKeys.dashboard.all, "stats"] as const,
+    pendingTrips: () => [...queryKeys.dashboard.all, "pendingTrips"] as const,
+  },
+};
+```
+
+IMPORTS TO USE:
+```typescript
+// Prisma (default export)
+import prisma from "@/lib/prisma";
+
+// Gemini AI
+import { genAI, MODEL_NAME } from "@/lib/gemini";
+```
+
+FOLDER STRUCTURE:
+```
+src/
+├── app/
+│   ├── globals.css
+│   ├── layout.tsx
+│   └── page.tsx
+├── actions/
+├── components/
+│   └── ui/
+├── hooks/
+├── lib/
+│   ├── prisma.ts          # Already configured (Prisma 7 + pg adapter)
+│   ├── gemini.ts          # Already configured (gemini-2.5-flash)
+│   ├── types.ts
+│   ├── constants.ts
+│   └── utils.ts
+├── context/
+│   └── QueryProvider.tsx  # Already configured
+└── store/
+prisma/
+├── schema.prisma
+└── migrations/
+```
+```
+
+---
+
 ### Phase 1: Layout & Navigation
 
 **Prompt for Claude Code CLI**:
@@ -914,9 +1211,29 @@ Create the main layout and navigation for Trip Scheduler app.
 REQUIREMENTS:
 
 1. Root Layout (app/layout.tsx):
-- Wrap with necessary providers
-- Include Toaster for notifications
+- Wrap with necessary providers (TanStack Query)
+- Include Toaster from sonner for notifications
 - Set up metadata (title, description)
+
+```typescript
+// app/layout.tsx
+import { Toaster } from "@/components/ui/sonner";
+import QueryProvider from "@/context/QueryProvider"; // Already exists
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        <QueryProvider>
+          {/* Main layout with sidebar */}
+          {children}
+          <Toaster position="top-right" richColors closeButton />
+        </QueryProvider>
+      </body>
+    </html>
+  );
+}
+```
 
 2. Dashboard Layout with Sidebar:
 - Create components/layout/sidebar.tsx
@@ -956,6 +1273,36 @@ SHADCN COMPONENTS NEEDED:
 - Sheet (for mobile nav)
 - ScrollArea (for sidebar)
 - Separator
+- Sonner (already installed - for Toaster)
+
+TOAST USAGE (throughout app):
+```typescript
+import { toast } from "sonner";
+
+// Success
+toast.success("Driver added successfully");
+
+// Error
+toast.error("Failed to add driver");
+
+// Warning
+toast.warning("Some trips could not be assigned");
+
+// Info
+toast.info("Processing...");
+
+// With description
+toast.success("Driver added", {
+  description: "John Smith has been added to the team"
+});
+
+// Promise (for async operations)
+toast.promise(saveDriver(), {
+  loading: "Saving driver...",
+  success: "Driver saved!",
+  error: "Failed to save driver"
+});
+```
 
 Create placeholder pages for all routes that just show the page title.
 ```
@@ -1021,49 +1368,102 @@ SERVER ACTIONS (actions/dashboard-actions.ts):
 ```typescript
 "use server"
 
-import { prisma } from "@/lib/prisma";
+import prisma from "@/lib/prisma";
 import { startOfWeek, endOfWeek } from "date-fns";
 
-export async function getDashboardStats() {
-  const now = new Date();
-  const weekStart = startOfWeek(now);
-  const weekEnd = endOfWeek(now);
+type ActionResponse<T> =
+  | { success: true; data: T; error?: never }
+  | { success: false; error: string; data?: never };
 
-  const [totalDrivers, tripsThisWeek, assignedTrips, pendingTrips] = await Promise.all([
-    prisma.driver.count({ where: { isActive: true } }),
-    prisma.trip.count({
-      where: {
-        tripDate: { gte: weekStart, lte: weekEnd },
-        tripStage: "Upcoming"
-      }
-    }),
-    prisma.trip.count({
-      where: {
-        tripDate: { gte: weekStart, lte: weekEnd },
-        tripStage: "Upcoming",
-        assignment: { isNot: null }
-      }
-    }),
-    prisma.trip.count({
-      where: {
-        tripDate: { gte: weekStart, lte: weekEnd },
-        tripStage: "Upcoming",
-        assignment: null
-      }
-    })
-  ]);
-
-  return { totalDrivers, tripsThisWeek, assignedTrips, pendingTrips };
+interface DashboardStats {
+  totalDrivers: number;
+  tripsThisWeek: number;
+  assignedTrips: number;
+  pendingTrips: number;
 }
 
-export async function getPendingTrips(limit = 5) {
-  return prisma.trip.findMany({
-    where: {
-      tripStage: "Upcoming",
-      assignment: null
+export async function getDashboardStats(): Promise<ActionResponse<DashboardStats>> {
+  try {
+    const now = new Date();
+    const weekStart = startOfWeek(now);
+    const weekEnd = endOfWeek(now);
+
+    const [totalDrivers, tripsThisWeek, assignedTrips, pendingTrips] = await Promise.all([
+      prisma.driver.count({ where: { isActive: true } }),
+      prisma.trip.count({
+        where: {
+          tripDate: { gte: weekStart, lte: weekEnd },
+          tripStage: "Upcoming"
+        }
+      }),
+      prisma.trip.count({
+        where: {
+          tripDate: { gte: weekStart, lte: weekEnd },
+          tripStage: "Upcoming",
+          assignment: { isNot: null }
+        }
+      }),
+      prisma.trip.count({
+        where: {
+          tripDate: { gte: weekStart, lte: weekEnd },
+          tripStage: "Upcoming",
+          assignment: null
+        }
+      })
+    ]);
+
+    return { success: true, data: { totalDrivers, tripsThisWeek, assignedTrips, pendingTrips } };
+  } catch (error) {
+    return { success: false, error: "Failed to fetch dashboard stats" };
+  }
+}
+
+export async function getPendingTrips(limit = 5): Promise<ActionResponse<any[]>> {
+  try {
+    const trips = await prisma.trip.findMany({
+      where: {
+        tripStage: "Upcoming",
+        assignment: null
+      },
+      orderBy: { tripDate: "asc" },
+      take: limit
+    });
+    return { success: true, data: trips };
+  } catch (error) {
+    return { success: false, error: "Failed to fetch pending trips" };
+  }
+}
+```
+
+HOOKS (hooks/use-dashboard.ts):
+```typescript
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
+import { getDashboardStats, getPendingTrips } from "@/actions/dashboard-actions";
+
+// Query: Dashboard stats
+export function useDashboardStats() {
+  return useQuery({
+    queryKey: queryKeys.dashboard.stats(),
+    queryFn: async () => {
+      const result = await getDashboardStats();
+      if (!result.success) throw new Error(result.error);
+      return result.data;
     },
-    orderBy: { tripDate: "asc" },
-    take: limit
+  });
+}
+
+// Query: Pending trips for dashboard
+export function usePendingTrips(limit = 5) {
+  return useQuery({
+    queryKey: [...queryKeys.dashboard.pendingTrips(), limit],
+    queryFn: async () => {
+      const result = await getPendingTrips(limit);
+      if (!result.success) throw new Error(result.error);
+      return result.data;
+    },
   });
 }
 ```
@@ -1175,85 +1575,214 @@ SERVER ACTIONS (actions/driver-actions.ts):
 ```typescript
 "use server"
 
-import { prisma } from "@/lib/prisma";
+import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+
+// Standard response type for all actions
+type ActionResponse<T> =
+  | { success: true; data: T; error?: never }
+  | { success: false; error: string; data?: never };
 
 const driverSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   availability: z.array(z.number()).min(1, "Select at least one day")
 });
 
-export async function getDrivers() {
-  return prisma.driver.findMany({
-    where: { isActive: true },
-    include: { availability: true },
-    orderBy: { name: "asc" }
-  });
+export async function getDrivers(): Promise<ActionResponse<Awaited<ReturnType<typeof prisma.driver.findMany>>>> {
+  try {
+    const drivers = await prisma.driver.findMany({
+      where: { isActive: true },
+      include: { availability: true },
+      orderBy: { name: "asc" }
+    });
+    return { success: true, data: drivers };
+  } catch (error) {
+    return { success: false, error: "Failed to fetch drivers" };
+  }
 }
 
-export async function createDriver(formData: FormData) {
-  const name = formData.get("name") as string;
-  const availability = JSON.parse(formData.get("availability") as string);
+export async function createDriver(formData: FormData): Promise<ActionResponse<any>> {
+  try {
+    const name = formData.get("name") as string;
+    const availability = JSON.parse(formData.get("availability") as string);
 
-  const validated = driverSchema.parse({ name, availability });
-
-  const driver = await prisma.driver.create({
-    data: {
-      name: validated.name,
-      availability: {
-        create: validated.availability.map(day => ({
-          dayOfWeek: day,
-          isAvailable: true
-        }))
-      }
+    const validated = driverSchema.safeParse({ name, availability });
+    if (!validated.success) {
+      return { success: false, error: validated.error.errors[0].message };
     }
-  });
 
-  revalidatePath("/drivers");
-  return { success: true, driver };
+    const driver = await prisma.driver.create({
+      data: {
+        name: validated.data.name,
+        availability: {
+          create: validated.data.availability.map(day => ({
+            dayOfWeek: day,
+            isAvailable: true
+          }))
+        }
+      },
+      include: { availability: true }
+    });
+
+    revalidatePath("/drivers");
+    revalidatePath("/");
+    return { success: true, data: driver };
+  } catch (error) {
+    return { success: false, error: "Failed to create driver" };
+  }
 }
 
-export async function updateDriver(id: string, formData: FormData) {
-  const name = formData.get("name") as string;
-  const availability = JSON.parse(formData.get("availability") as string);
+export async function updateDriver(id: string, formData: FormData): Promise<ActionResponse<any>> {
+  try {
+    const name = formData.get("name") as string;
+    const availability = JSON.parse(formData.get("availability") as string);
 
-  // Delete existing availability and recreate
-  await prisma.driverAvailability.deleteMany({ where: { driverId: id } });
-  
-  const driver = await prisma.driver.update({
-    where: { id },
-    data: {
-      name,
-      availability: {
-        create: availability.map((day: number) => ({
-          dayOfWeek: day,
-          isAvailable: true
-        }))
-      }
+    const validated = driverSchema.safeParse({ name, availability });
+    if (!validated.success) {
+      return { success: false, error: validated.error.errors[0].message };
     }
-  });
 
-  revalidatePath("/drivers");
-  return { success: true, driver };
+    // Delete existing availability and recreate
+    await prisma.driverAvailability.deleteMany({ where: { driverId: id } });
+
+    const driver = await prisma.driver.update({
+      where: { id },
+      data: {
+        name: validated.data.name,
+        availability: {
+          create: validated.data.availability.map((day: number) => ({
+            dayOfWeek: day,
+            isAvailable: true
+          }))
+        }
+      },
+      include: { availability: true }
+    });
+
+    revalidatePath("/drivers");
+    revalidatePath("/assignments");
+    return { success: true, data: driver };
+  } catch (error) {
+    return { success: false, error: "Failed to update driver" };
+  }
 }
 
-export async function deleteDriver(id: string) {
-  await prisma.driver.update({
-    where: { id },
-    data: { isActive: false }
-  });
+export async function deleteDriver(id: string): Promise<ActionResponse<{ id: string }>> {
+  try {
+    await prisma.driver.update({
+      where: { id },
+      data: { isActive: false }
+    });
 
-  revalidatePath("/drivers");
-  return { success: true };
+    revalidatePath("/drivers");
+    revalidatePath("/");
+    return { success: true, data: { id } };
+  } catch (error) {
+    return { success: false, error: "Failed to delete driver" };
+  }
 }
 ```
 
 HOOKS (hooks/use-drivers.ts):
-- Use TanStack Query for data fetching
-- useQuery to fetch drivers (calls server action)
-- useMutation for create/update/delete
-- Invalidate queries on mutation success
+```typescript
+"use client";
+
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
+import { toast } from "sonner";
+import {
+  getDrivers,
+  createDriver,
+  updateDriver,
+  deleteDriver,
+} from "@/actions/driver-actions";
+
+// Query: List all drivers
+export function useDrivers() {
+  return useQuery({
+    queryKey: queryKeys.drivers.list(),
+    queryFn: async () => {
+      const result = await getDrivers();
+      if (!result.success) throw new Error(result.error);
+      return result.data;
+    },
+  });
+}
+
+// Mutation: Create driver
+export function useCreateDriver() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: { name: string; availability: number[] }) => {
+      const formData = new FormData();
+      formData.append("name", input.name);
+      formData.append("availability", JSON.stringify(input.availability));
+      const result = await createDriver(formData);
+      if (!result.success) throw new Error(result.error);
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.drivers.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      toast.success("Driver created successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to create driver");
+    },
+  });
+}
+
+// Mutation: Update driver
+export function useUpdateDriver() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, input }: { id: string; input: { name: string; availability: number[] } }) => {
+      const formData = new FormData();
+      formData.append("name", input.name);
+      formData.append("availability", JSON.stringify(input.availability));
+      const result = await updateDriver(id, formData);
+      if (!result.success) throw new Error(result.error);
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.drivers.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.assignments.all });
+      toast.success("Driver updated successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to update driver");
+    },
+  });
+}
+
+// Mutation: Delete driver
+export function useDeleteDriver() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const result = await deleteDriver(id);
+      if (!result.success) throw new Error(result.error);
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.drivers.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      toast.success("Driver deleted successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to delete driver");
+    },
+  });
+}
+```
 ```
 
 ---
@@ -1339,97 +1868,276 @@ SERVER ACTIONS (actions/trip-actions.ts):
 ```typescript
 "use server"
 
-import { prisma } from "@/lib/prisma";
+import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+
+type ActionResponse<T> =
+  | { success: true; data: T; error?: never }
+  | { success: false; error: string; data?: never };
 
 const tripSchema = z.object({
   tripId: z.string().startsWith("T-", "Trip ID must start with T-"),
   tripDate: z.coerce.date()
 });
 
-export async function getTrips() {
-  return prisma.trip.findMany({
-    include: { assignment: { include: { driver: true } } },
-    orderBy: { tripDate: "asc" }
-  });
+export async function getTrips(): Promise<ActionResponse<any[]>> {
+  try {
+    const trips = await prisma.trip.findMany({
+      include: { assignment: { include: { driver: true } } },
+      orderBy: { tripDate: "asc" }
+    });
+    return { success: true, data: trips };
+  } catch (error) {
+    return { success: false, error: "Failed to fetch trips" };
+  }
 }
 
-export async function createTrip(formData: FormData) {
-  const tripId = formData.get("tripId") as string;
-  const tripDate = new Date(formData.get("tripDate") as string);
-  
-  const validated = tripSchema.parse({ tripId, tripDate });
-  const dayOfWeek = tripDate.getDay();
+export async function createTrip(formData: FormData): Promise<ActionResponse<any>> {
+  try {
+    const tripId = formData.get("tripId") as string;
+    const tripDate = new Date(formData.get("tripDate") as string);
 
-  // Check if trip already exists
-  const existing = await prisma.trip.findFirst({
-    where: { tripId: validated.tripId }
-  });
-
-  if (existing) {
-    return { success: false, error: "Trip ID already exists" };
-  }
-
-  const trip = await prisma.trip.create({
-    data: {
-      tripId: validated.tripId,
-      tripDate: validated.tripDate,
-      dayOfWeek,
-      tripStage: "Upcoming"
+    const validated = tripSchema.safeParse({ tripId, tripDate });
+    if (!validated.success) {
+      return { success: false, error: validated.error.errors[0].message };
     }
-  });
 
-  revalidatePath("/trips");
-  return { success: true, trip };
+    const dayOfWeek = validated.data.tripDate.getDay();
+
+    // Check if trip already exists
+    const existing = await prisma.trip.findFirst({
+      where: { tripId: validated.data.tripId }
+    });
+
+    if (existing) {
+      return { success: false, error: "Trip ID already exists" };
+    }
+
+    const trip = await prisma.trip.create({
+      data: {
+        tripId: validated.data.tripId,
+        tripDate: validated.data.tripDate,
+        dayOfWeek,
+        tripStage: "Upcoming"
+      }
+    });
+
+    revalidatePath("/trips");
+    revalidatePath("/");
+    return { success: true, data: trip };
+  } catch (error) {
+    return { success: false, error: "Failed to create trip" };
+  }
 }
 
 export async function importTripsFromCSV(trips: {
   tripId: string;
   tripDate: Date;
   dayOfWeek: number;
-}[]) {
-  const results = [];
+}[]): Promise<ActionResponse<{ imported: number; skipped: number }>> {
+  try {
+    let imported = 0;
+    let skipped = 0;
 
-  for (const trip of trips) {
-    // Skip if already exists
-    const existing = await prisma.trip.findFirst({
-      where: { tripId: trip.tripId }
-    });
-
-    if (!existing) {
-      const created = await prisma.trip.create({
-        data: {
-          tripId: trip.tripId,
-          tripDate: trip.tripDate,
-          dayOfWeek: trip.dayOfWeek,
-          tripStage: "Upcoming"
-        }
+    for (const trip of trips) {
+      const existing = await prisma.trip.findFirst({
+        where: { tripId: trip.tripId }
       });
-      results.push(created);
-    }
-  }
 
-  revalidatePath("/trips");
-  return { success: true, imported: results.length };
+      if (!existing) {
+        await prisma.trip.create({
+          data: {
+            tripId: trip.tripId,
+            tripDate: trip.tripDate,
+            dayOfWeek: trip.dayOfWeek,
+            tripStage: "Upcoming"
+          }
+        });
+        imported++;
+      } else {
+        skipped++;
+      }
+    }
+
+    revalidatePath("/trips");
+    revalidatePath("/");
+    return { success: true, data: { imported, skipped } };
+  } catch (error) {
+    return { success: false, error: "Failed to import trips" };
+  }
 }
 
-export async function deleteTrip(id: string) {
-  await prisma.trip.delete({ where: { id } });
-  revalidatePath("/trips");
-  return { success: true };
+export async function deleteTrip(id: string): Promise<ActionResponse<{ id: string }>> {
+  try {
+    await prisma.trip.delete({ where: { id } });
+    revalidatePath("/trips");
+    revalidatePath("/");
+    return { success: true, data: { id } };
+  } catch (error) {
+    return { success: false, error: "Failed to delete trip" };
+  }
+}
+```
+
+HOOKS (hooks/use-trips.ts):
+```typescript
+"use client";
+
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
+import { toast } from "sonner";
+import {
+  getTrips,
+  createTrip,
+  importTripsFromCSV,
+  deleteTrip,
+} from "@/actions/trip-actions";
+
+// Query: List all trips
+export function useTrips() {
+  return useQuery({
+    queryKey: queryKeys.trips.list(),
+    queryFn: async () => {
+      const result = await getTrips();
+      if (!result.success) throw new Error(result.error);
+      return result.data;
+    },
+  });
+}
+
+// Mutation: Create trip
+export function useCreateTrip() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: { tripId: string; tripDate: string }) => {
+      const formData = new FormData();
+      formData.append("tripId", input.tripId);
+      formData.append("tripDate", input.tripDate);
+      const result = await createTrip(formData);
+      if (!result.success) throw new Error(result.error);
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.trips.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.assignments.all });
+      toast.success("Trip created successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to create trip");
+    },
+  });
+}
+
+// Mutation: Import trips from CSV
+export function useImportTrips() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (trips: { tripId: string; tripDate: Date; dayOfWeek: number }[]) => {
+      const result = await importTripsFromCSV(trips);
+      if (!result.success) throw new Error(result.error);
+      return result.data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.trips.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.assignments.all });
+      toast.success(`Imported ${data.imported} trips${data.skipped > 0 ? `, ${data.skipped} skipped` : ""}`);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to import trips");
+    },
+  });
+}
+
+// Mutation: Delete trip
+export function useDeleteTrip() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const result = await deleteTrip(id);
+      if (!result.success) throw new Error(result.error);
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.trips.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.assignments.all });
+      toast.success("Trip deleted successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to delete trip");
+    },
+  });
 }
 ```
 
 CSV PARSING (lib/csv-parser.ts):
 ```typescript
 import Papa from "papaparse";
-import { getDay, parse } from "date-fns";
+import { getDay, parse, isValid } from "date-fns";
 
 interface CSVRow {
   "Trip ID": string;
   "Stop 1 Planned Arrival Date": string;
   "Trip Stage": string;
+}
+
+interface ParsedTrip {
+  tripId: string;
+  tripDate: Date;
+  dayOfWeek: number;
+}
+
+// Supported date formats for flexible CSV parsing
+const DATE_FORMATS = [
+  "M/d/yy",       // 1/15/26
+  "MM/dd/yy",     // 01/15/26
+  "M/d/yyyy",     // 1/15/2026
+  "MM/dd/yyyy",   // 01/15/2026
+  "yyyy-MM-dd",   // 2026-01-15 (ISO)
+  "dd/MM/yyyy",   // 15/01/2026 (European)
+  "dd-MM-yyyy",   // 15-01-2026
+  "MMM d, yyyy",  // Jan 15, 2026
+  "MMMM d, yyyy", // January 15, 2026
+] as const;
+
+/**
+ * Parses a date string trying multiple formats
+ * Returns null if no format matches
+ */
+function parseFlexibleDate(dateStr: string): Date | null {
+  if (!dateStr || typeof dateStr !== "string") return null;
+
+  const trimmed = dateStr.trim();
+
+  // Try each format until one works
+  for (const format of DATE_FORMATS) {
+    try {
+      const parsed = parse(trimmed, format, new Date());
+      if (isValid(parsed)) {
+        return parsed;
+      }
+    } catch {
+      // Continue to next format
+    }
+  }
+
+  // Fallback: try native Date parsing for ISO strings
+  const nativeDate = new Date(trimmed);
+  if (isValid(nativeDate)) {
+    return nativeDate;
+  }
+
+  return null;
 }
 
 export function parseTripsCSV(file: File): Promise<ParsedTrip[]> {
@@ -1439,24 +2147,34 @@ export function parseTripsCSV(file: File): Promise<ParsedTrip[]> {
       skipEmptyLines: true,
       complete: (results) => {
         const trips = new Map<string, ParsedTrip>();
-        
+        const errors: string[] = [];
+
         for (const row of results.data) {
           // Skip canceled trips
           if (row["Trip Stage"] === "Canceled") continue;
-          
+
           const tripId = row["Trip ID"];
           if (!tripId || trips.has(tripId)) continue;
-          
+
           const dateStr = row["Stop 1 Planned Arrival Date"];
-          const tripDate = parse(dateStr, "M/d/yy", new Date());
-          
+          const tripDate = parseFlexibleDate(dateStr);
+
+          if (!tripDate) {
+            errors.push(`Invalid date format for trip ${tripId}: "${dateStr}"`);
+            continue;
+          }
+
           trips.set(tripId, {
             tripId,
             tripDate,
             dayOfWeek: getDay(tripDate)
           });
         }
-        
+
+        if (errors.length > 0) {
+          console.warn("CSV parsing warnings:", errors);
+        }
+
         resolve(Array.from(trips.values()));
       },
       error: (error) => reject(error)
@@ -1545,80 +2263,178 @@ SERVER ACTIONS (actions/assignment-actions.ts):
 ```typescript
 "use server"
 
-import { prisma } from "@/lib/prisma";
+import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
-export async function getAssignments() {
-  return prisma.trip.findMany({
-    where: { tripStage: "Upcoming" },
-    include: {
-      assignment: {
-        include: { driver: true }
-      }
+type ActionResponse<T> =
+  | { success: true; data: T; error?: never }
+  | { success: false; error: string; data?: never };
+
+export async function getAssignments(): Promise<ActionResponse<any[]>> {
+  try {
+    const assignments = await prisma.trip.findMany({
+      where: { tripStage: "Upcoming" },
+      include: {
+        assignment: {
+          include: { driver: true }
+        }
+      },
+      orderBy: { tripDate: "asc" }
+    });
+    return { success: true, data: assignments };
+  } catch (error) {
+    return { success: false, error: "Failed to fetch assignments" };
+  }
+}
+
+export async function getAssignmentStats(): Promise<ActionResponse<{ total: number; assigned: number; pending: number }>> {
+  try {
+    const [total, assigned, pending] = await Promise.all([
+      prisma.trip.count({ where: { tripStage: "Upcoming" } }),
+      prisma.trip.count({
+        where: {
+          tripStage: "Upcoming",
+          assignment: { isNot: null }
+        }
+      }),
+      prisma.trip.count({
+        where: {
+          tripStage: "Upcoming",
+          assignment: null
+        }
+      })
+    ]);
+
+    return { success: true, data: { total, assigned, pending } };
+  } catch (error) {
+    return { success: false, error: "Failed to fetch stats" };
+  }
+}
+
+export async function updateAssignment(tripId: string, driverId: string | null): Promise<ActionResponse<any>> {
+  try {
+    if (driverId === null) {
+      await prisma.tripAssignment.delete({
+        where: { tripId }
+      });
+    } else {
+      await prisma.tripAssignment.upsert({
+        where: { tripId },
+        create: {
+          tripId,
+          driverId,
+          isAutoAssigned: false
+        },
+        update: {
+          driverId,
+          isAutoAssigned: false
+        }
+      });
+    }
+
+    revalidatePath("/assignments");
+    revalidatePath("/");
+    return { success: true, data: { tripId, driverId } };
+  } catch (error) {
+    return { success: false, error: "Failed to update assignment" };
+  }
+}
+
+export async function getAvailableDriversForDay(dayOfWeek: number): Promise<ActionResponse<any[]>> {
+  try {
+    const drivers = await prisma.driver.findMany({
+      where: {
+        isActive: true,
+        availability: {
+          some: {
+            dayOfWeek,
+            isAvailable: true
+          }
+        }
+      },
+      orderBy: { name: "asc" }
+    });
+    return { success: true, data: drivers };
+  } catch (error) {
+    return { success: false, error: "Failed to fetch available drivers" };
+  }
+}
+```
+
+HOOKS (hooks/use-assignments.ts):
+```typescript
+"use client";
+
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
+import { toast } from "sonner";
+import {
+  getAssignments,
+  getAssignmentStats,
+  updateAssignment,
+  getAvailableDriversForDay,
+} from "@/actions/assignment-actions";
+
+// Query: List all assignments
+export function useAssignments() {
+  return useQuery({
+    queryKey: queryKeys.assignments.list(),
+    queryFn: async () => {
+      const result = await getAssignments();
+      if (!result.success) throw new Error(result.error);
+      return result.data;
     },
-    orderBy: { tripDate: "asc" }
   });
 }
 
-export async function getAssignmentStats() {
-  const [total, assigned, pending] = await Promise.all([
-    prisma.trip.count({ where: { tripStage: "Upcoming" } }),
-    prisma.trip.count({ 
-      where: { 
-        tripStage: "Upcoming",
-        assignment: { isNot: null }
-      }
-    }),
-    prisma.trip.count({ 
-      where: { 
-        tripStage: "Upcoming",
-        assignment: null
-      }
-    })
-  ]);
-
-  return { total, assigned, pending };
-}
-
-export async function updateAssignment(tripId: string, driverId: string | null) {
-  if (driverId === null) {
-    // Remove assignment
-    await prisma.tripAssignment.delete({
-      where: { tripId }
-    });
-  } else {
-    // Upsert assignment
-    await prisma.tripAssignment.upsert({
-      where: { tripId },
-      create: {
-        tripId,
-        driverId,
-        isAutoAssigned: false
-      },
-      update: {
-        driverId,
-        isAutoAssigned: false,
-        isManualOverride: true
-      }
-    });
-  }
-
-  revalidatePath("/assignments");
-  return { success: true };
-}
-
-export async function getAvailableDriversForDay(dayOfWeek: number) {
-  return prisma.driver.findMany({
-    where: {
-      isActive: true,
-      availability: {
-        some: {
-          dayOfWeek,
-          isAvailable: true
-        }
-      }
+// Query: Assignment stats
+export function useAssignmentStats() {
+  return useQuery({
+    queryKey: queryKeys.assignments.stats(),
+    queryFn: async () => {
+      const result = await getAssignmentStats();
+      if (!result.success) throw new Error(result.error);
+      return result.data;
     },
-    orderBy: { name: "asc" }
+  });
+}
+
+// Query: Available drivers for a specific day
+export function useAvailableDrivers(dayOfWeek: number) {
+  return useQuery({
+    queryKey: [...queryKeys.drivers.all, "available", dayOfWeek],
+    queryFn: async () => {
+      const result = await getAvailableDriversForDay(dayOfWeek);
+      if (!result.success) throw new Error(result.error);
+      return result.data;
+    },
+    enabled: dayOfWeek >= 0 && dayOfWeek <= 6,
+  });
+}
+
+// Mutation: Update assignment
+export function useUpdateAssignment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ tripId, driverId }: { tripId: string; driverId: string | null }) => {
+      const result = await updateAssignment(tripId, driverId);
+      if (!result.success) throw new Error(result.error);
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.assignments.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.trips.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      toast.success("Assignment updated successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to update assignment");
+    },
   });
 }
 ```
@@ -1740,22 +2556,36 @@ RESPONSIVE:
 ```
 Create Gemini AI integration for Trip Scheduler auto-assignment using Server Actions.
 
+NOTE: Gemini client (lib/gemini.ts) is already configured with exports: genAI, MODEL_NAME
+
 REQUIREMENTS:
 
-1. Gemini Client (lib/gemini.ts):
-- Initialize GoogleGenerativeAI
-- Use gemini-2.5-flash model
-- Environment variable: GEMINI_API_KEY (server-side only, no NEXT_PUBLIC)
-
-2. Server Action (actions/ai-actions.ts):
+1. Server Action (actions/ai-actions.ts):
 ```typescript
 "use server"
 
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { prisma } from "@/lib/prisma";
+import prisma from "@/lib/prisma";
+import { genAI, MODEL_NAME } from "@/lib/gemini";
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+// ============================================
+// VALIDATION SCHEMAS
+// ============================================
+
+const AIAssignmentSchema = z.object({
+  tripId: z.string().min(1, "tripId is required"),
+  driverId: z.string().min(1, "driverId is required"),
+  reasoning: z.string().default("No reasoning provided")
+});
+
+const AIResponseSchema = z.object({
+  assignments: z.array(AIAssignmentSchema),
+  summary: z.string().optional(),
+  warnings: z.array(z.string()).optional().default([])
+});
+
+type AIResponse = z.infer<typeof AIResponseSchema>;
 
 interface AssignmentResult {
   success: boolean;
@@ -1769,6 +2599,74 @@ interface AssignmentResult {
   error?: string;
 }
 
+// ============================================
+// AI RESPONSE PARSING (Robust)
+// ============================================
+
+/**
+ * Extracts and validates JSON from AI response text
+ * Handles markdown code blocks, raw JSON, and malformed responses
+ */
+function parseAIResponse(text: string): AIResponse {
+  if (!text || typeof text !== "string") {
+    throw new Error("Empty response from AI");
+  }
+
+  // Patterns to try (in order of preference)
+  const patterns = [
+    /```json\s*([\s\S]*?)\s*```/,   // ```json ... ```
+    /```\s*([\s\S]*?)\s*```/,        // ``` ... ```
+    /(\{[\s\S]*"assignments"[\s\S]*\})/,  // Object with assignments key
+  ];
+
+  let jsonStr = text.trim();
+
+  // Try each pattern to extract JSON
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match && match[1]) {
+      jsonStr = match[1].trim();
+      break;
+    }
+  }
+
+  // Attempt to parse JSON
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(jsonStr);
+  } catch (parseError) {
+    // Try to fix common JSON issues
+    try {
+      // Remove trailing commas before ] or }
+      const fixed = jsonStr
+        .replace(/,\s*]/g, "]")
+        .replace(/,\s*}/g, "}");
+      parsed = JSON.parse(fixed);
+    } catch {
+      throw new Error(
+        `Failed to parse AI response as JSON. ` +
+        `Raw response: ${text.substring(0, 200)}...`
+      );
+    }
+  }
+
+  // Validate structure with zod
+  const result = AIResponseSchema.safeParse(parsed);
+
+  if (!result.success) {
+    const issues = result.error.issues
+      .map(i => `${i.path.join(".")}: ${i.message}`)
+      .join(", ");
+    throw new Error(`Invalid AI response structure: ${issues}`);
+  }
+
+  return result.data;
+}
+
+// ============================================
+// MAIN AUTO-ASSIGN FUNCTION
+// ============================================
+
 export async function autoAssignDrivers(): Promise<AssignmentResult> {
   try {
     // Fetch unassigned trips
@@ -1777,63 +2675,132 @@ export async function autoAssignDrivers(): Promise<AssignmentResult> {
       select: { id: true, tripId: true, tripDate: true, dayOfWeek: true }
     });
 
+    if (trips.length === 0) {
+      return { success: true, summary: "No unassigned trips to process", assignments: [] };
+    }
+
     // Fetch active drivers with availability
     const drivers = await prisma.driver.findMany({
       where: { isActive: true },
       include: { availability: { where: { isAvailable: true } } }
     });
 
-    // Call Gemini AI
-    const prompt = buildAssignmentPrompt(trips, drivers);
-    const result = await model.generateContent(prompt);
-    const response = await result.response.text();
-    
-    // Parse and save assignments
-    const parsed = JSON.parse(response);
-    
-    // Create assignments in database
-    for (const assignment of parsed.assignments) {
-      await prisma.tripAssignment.create({
-        data: {
-          tripId: assignment.tripId,
-          driverId: assignment.driverId,
-          isAutoAssigned: true,
-          aiReasoning: assignment.reasoning
-        }
-      });
+    if (drivers.length === 0) {
+      return { success: false, error: "No active drivers available" };
     }
+
+    // Build prompt
+    const prompt = buildAssignmentPrompt(trips, drivers);
+
+    // Call Gemini AI
+    const response = await genAI.models.generateContent({
+      model: MODEL_NAME,
+      contents: prompt,
+    });
+
+    const text = response.text || "";
+
+    // Parse and validate AI response
+    const parsed = parseAIResponse(text);
+
+    // Validate that tripIds and driverIds exist in our data
+    const tripIdSet = new Set(trips.map(t => t.id));
+    const driverIdSet = new Set(drivers.map(d => d.id));
+    const warnings: string[] = [...(parsed.warnings || [])];
+
+    const validAssignments = parsed.assignments.filter(a => {
+      if (!tripIdSet.has(a.tripId)) {
+        warnings.push(`Skipped invalid trip ID: ${a.tripId}`);
+        return false;
+      }
+      if (!driverIdSet.has(a.driverId)) {
+        warnings.push(`Skipped invalid driver ID: ${a.driverId}`);
+        return false;
+      }
+      return true;
+    });
+
+    // Create assignments in database (use transaction for atomicity)
+    await prisma.$transaction(
+      validAssignments.map(assignment =>
+        prisma.tripAssignment.create({
+          data: {
+            tripId: assignment.tripId,
+            driverId: assignment.driverId,
+            isAutoAssigned: true,
+            aiReasoning: assignment.reasoning
+          }
+        })
+      )
+    );
+
+    revalidatePath("/assignments");
+    revalidatePath("/trips");
 
     return {
       success: true,
-      assignments: parsed.assignments,
-      summary: parsed.summary,
-      warnings: parsed.warnings
+      assignments: validAssignments,
+      summary: parsed.summary || `Assigned ${validAssignments.length} trips`,
+      warnings
     };
   } catch (error) {
+    console.error("AI Assignment error:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Unknown error"
+      error: error instanceof Error ? error.message : "Unknown error occurred"
     };
   }
 }
+
+function buildAssignmentPrompt(
+  trips: { id: string; tripId: string; tripDate: Date; dayOfWeek: number }[],
+  drivers: { id: string; name: string; availability: { dayOfWeek: number }[] }[]
+) {
+  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  
+  const driversData = drivers.map(d => ({
+    id: d.id,
+    name: d.name,
+    availableDays: d.availability.map(a => dayNames[a.dayOfWeek])
+  }));
+
+  const tripsData = trips.map(t => ({
+    id: t.id,
+    tripId: t.tripId,
+    date: t.tripDate.toISOString().split('T')[0],
+    dayOfWeek: dayNames[t.dayOfWeek]
+  }));
+
+  return `You are a fleet scheduling assistant for Peak Transport.
+
+TASK: Assign drivers to trips based on availability.
+
+RULES:
+1. Only assign a driver if they are available on the trip's day of week
+2. Balance workload - try to give each driver a similar number of trips
+3. Provide a brief reasoning for each assignment
+4. If no driver is available for a trip, do not include it in assignments
+
+DRIVERS:
+${JSON.stringify(driversData, null, 2)}
+
+TRIPS TO ASSIGN:
+${JSON.stringify(tripsData, null, 2)}
+
+OUTPUT FORMAT (JSON only, no markdown code blocks):
+{
+  "assignments": [
+    {"tripId": "trip-db-id", "driverId": "driver-db-id", "reasoning": "brief reason"}
+  ],
+  "summary": "Assigned X trips to Y drivers",
+  "warnings": ["any issues or unassigned trips"]
+}
+
+Respond with only valid JSON, no additional text.`;
+}
 ```
 
-3. Assignment Prompt Template:
-- Role: Fleet scheduling assistant
-- Task: Assign drivers to trips
-- Rules:
-  • Only assign if driver available on that day
-  • Balance workload across drivers
-  • Provide brief reasoning
-- Input: JSON of trips and drivers
-- Output: JSON format only
-
-4. Hook (hooks/use-ai-assign.ts):
-- Uses React Query useMutation
-- Calls server action
-- Handles loading/error states
-- Invalidates queries on success
-
+2. Hook (hooks/use-ai-assign.ts):
 ```typescript
 "use client"
 
@@ -1851,26 +2818,24 @@ export function useAIAssign() {
         toast.success(data.summary || "Drivers assigned successfully");
         queryClient.invalidateQueries({ queryKey: ["trips"] });
         queryClient.invalidateQueries({ queryKey: ["assignments"] });
+        
+        if (data.warnings && data.warnings.length > 0) {
+          data.warnings.forEach(warning => toast.warning(warning));
+        }
       } else {
         toast.error(data.error || "Failed to assign drivers");
       }
     },
     onError: (error) => {
       toast.error("An error occurred while assigning drivers");
+      console.error(error);
     }
   });
 }
 ```
 
-5. Error Handling:
-- API errors → return error in result
-- Parse errors → fallback message
-- No available drivers → warning in output
-- Rate limiting → retry logic
-
 ENVIRONMENT:
-- Add GEMINI_API_KEY to .env.local (server-side, no NEXT_PUBLIC prefix)
-- Add to .env.example as placeholder
+- GEMINI_API_KEY in .env.local (server-side, no NEXT_PUBLIC prefix)
 ```
 
 ---
@@ -1948,11 +2913,8 @@ SERVER ACTION (actions/chat-actions.ts):
 ```typescript
 "use server"
 
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { prisma } from "@/lib/prisma";
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+import prisma from "@/lib/prisma";
+import { genAI, MODEL_NAME } from "@/lib/gemini";
 
 export async function sendChatMessage(message: string) {
   try {
@@ -1969,6 +2931,8 @@ export async function sendChatMessage(message: string) {
       getStats()
     ]);
 
+    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
     const prompt = `
 You are Trip Scheduler AI assistant for Peak Transport.
 
@@ -1983,14 +2947,14 @@ ${JSON.stringify(drivers.map(d => ({
   name: d.name,
   availableDays: d.availability
     .filter(a => a.isAvailable)
-    .map(a => ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][a.dayOfWeek])
+    .map(a => dayNames[a.dayOfWeek])
 })), null, 2)}
 
 TRIPS:
 ${JSON.stringify(trips.slice(0, 20).map(t => ({
   tripId: t.tripId,
-  date: t.tripDate,
-  day: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][t.dayOfWeek],
+  date: t.tripDate.toISOString().split('T')[0],
+  day: dayNames[t.dayOfWeek],
   driver: t.assignment?.driver?.name || "Unassigned"
 })), null, 2)}
 
@@ -2000,11 +2964,14 @@ Respond helpfully and concisely. Reference actual data when possible.
 If user wants to make changes, explain what actions to take in the app.
 `;
 
-    const result = await model.generateContent(prompt);
-    const response = result.response.text();
+    const response = await genAI.models.generateContent({
+      model: MODEL_NAME,
+      contents: prompt,
+    });
 
-    return { success: true, response };
+    return { success: true, response: response.text || "" };
   } catch (error) {
+    console.error("Chat error:", error);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : "Failed to get response"
@@ -2161,8 +3128,8 @@ TEST CHECKLIST:
 ```env
 # .env.local
 
-# Database
-DATABASE_URL="postgresql://..."
+# Database (PostgreSQL - works with Neon, Supabase, Railway, etc.)
+DATABASE_URL="postgresql://user:password@host:5432/database?sslmode=require"
 
 # AI (Server-side only - no NEXT_PUBLIC prefix)
 GEMINI_API_KEY="your-gemini-api-key"
@@ -2170,6 +3137,20 @@ GEMINI_API_KEY="your-gemini-api-key"
 # App
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
 ```
+
+### Existing Configuration Files
+
+Your project already has these configured:
+
+**lib/prisma.ts** - Prisma 7 with pg adapter:
+- Uses `@prisma/adapter-pg` for connection pooling
+- Connection pool: max 10 connections
+- Supports Neon, Supabase, Railway, or any PostgreSQL
+
+**lib/gemini.ts** - Google GenAI:
+- Exports: `genAI`, `MODEL_NAME`
+- Model: `gemini-2.5-flash`
+- Server-side only (uses `GEMINI_API_KEY`)
 
 ---
 
@@ -2179,11 +3160,11 @@ NEXT_PUBLIC_APP_URL="http://localhost:3000"
 # Install dependencies
 pnpm install
 
-# Install shadcn components
-pnpm dlx shadcn@latest add button card dialog table input form tabs badge toast alert-dialog sheet scroll-area separator skeleton select dropdown-menu calendar progress tooltip textarea avatar
+# Install shadcn components (sonner for toast notifications)
+pnpm dlx shadcn@latest add button card dialog table input form tabs badge sonner alert-dialog sheet scroll-area separator skeleton select dropdown-menu calendar progress tooltip textarea avatar
 
 # Install additional packages
-pnpm add date-fns papaparse @tanstack/react-query zustand @google/generative-ai
+pnpm add date-fns papaparse @tanstack/react-query zustand
 pnpm add -D @types/papaparse
 
 # Set up Prisma (initial setup)

@@ -17,4 +17,33 @@ import * as Prisma from './internal/prismaNamespaceBrowser'
 export { Prisma }
 export * as $Enums from './enums'
 export * from './enums';
-
+/**
+ * Model Driver
+ * 
+ */
+export type Driver = Prisma.DriverModel
+/**
+ * Model DriverAvailability
+ * 
+ */
+export type DriverAvailability = Prisma.DriverAvailabilityModel
+/**
+ * Model WeekUpload
+ * 
+ */
+export type WeekUpload = Prisma.WeekUploadModel
+/**
+ * Model Trip
+ * 
+ */
+export type Trip = Prisma.TripModel
+/**
+ * Model TripAssignment
+ * 
+ */
+export type TripAssignment = Prisma.TripAssignmentModel
+/**
+ * Model ChatMessage
+ * 
+ */
+export type ChatMessage = Prisma.ChatMessageModel

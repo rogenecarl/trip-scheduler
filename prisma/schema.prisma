@@ -1,8 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// Trip Scheduler - Peak Transport
+// Prisma 7 Schema
 
 generator client {
   provider = "prisma-client"
@@ -11,4 +8,116 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum UploadStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+// ============================================
+// DRIVER MANAGEMENT
+// ============================================
+
+model Driver {
+  id        String   @id @default(cuid())
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  availability DriverAvailability[]
+  assignments  TripAssignment[]
+
+  @@index([name])
+  @@index([isActive])
+}
+
+model DriverAvailability {
+  id          String  @id @default(cuid())
+  driverId    String
+  dayOfWeek   Int // 0 = Sunday, 1 = Monday, ... 6 = Saturday
+  isAvailable Boolean @default(true)
+
+  // Relations
+  driver Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@unique([driverId, dayOfWeek])
+  @@index([dayOfWeek])
+  @@index([isAvailable])
+}
+
+// ============================================
+// TRIP MANAGEMENT
+// ============================================
+
+model WeekUpload {
+  id            String       @id @default(cuid())
+  fileName      String
+  uploadedAt    DateTime     @default(now())
+  status        UploadStatus @default(PENDING)
+  totalTrips    Int          @default(0)
+  assignedTrips Int          @default(0)
+
+  // Relations
+  trips Trip[]
+
+  @@index([uploadedAt])
+  @@index([status])
+}
+
+model Trip {
+  id        String   @id @default(cuid())
+  tripId    String   @unique // e.g., "T-115JCVWMY" - UNIQUE (same Trip ID = 1 driver)
+  tripDate  DateTime // From "Stop 1 Planned Arrival Date"
+  dayOfWeek Int // 0-6, derived from tripDate
+  tripStage String   @default("Upcoming") // "Upcoming" or "Canceled"
+
+  // Optional: Link to CSV upload (null if manually added)
+  weekUploadId String?
+  createdAt    DateTime @default(now())
+
+  // Relations
+  weekUpload WeekUpload?     @relation(fields: [weekUploadId], references: [id], onDelete: Cascade)
+  assignment TripAssignment?
+
+  @@index([tripDate])
+  @@index([dayOfWeek])
+  @@index([tripStage])
+}
+
+model TripAssignment {
+  id             String   @id @default(cuid())
+  tripId         String   @unique
+  driverId       String
+  assignedAt     DateTime @default(now())
+  isAutoAssigned Boolean  @default(false) // true if assigned by AI, false if manual
+  aiReasoning    String?  @db.Text
+
+  // Relations
+  trip   Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  driver Driver @relation(fields: [driverId], references: [id])
+
+  @@index([driverId])
+}
+
+// ============================================
+// AI CHAT HISTORY
+// ============================================
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  sessionId String
+  role      String // "user" or "assistant"
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([sessionId])
 }
