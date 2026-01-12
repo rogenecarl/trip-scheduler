@@ -1,5 +1,5 @@
 import { DashboardHeader } from "@/components/layout";
-import { Users } from "lucide-react";
+import { DriverTable } from "@/components/drivers";
 
 export default function DriversPage() {
   return (
@@ -21,18 +21,7 @@ export default function DriversPage() {
           </p>
         </div>
 
-        {/* Placeholder content */}
-        <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed">
-          <div className="flex flex-col items-center gap-2 text-center p-8">
-            <div className="rounded-full bg-muted p-4">
-              <Users className="h-8 w-8 text-muted-foreground" />
-            </div>
-            <h3 className="text-lg font-medium">Driver Management</h3>
-            <p className="text-sm text-muted-foreground max-w-sm">
-              Add, edit, and manage driver information and weekly availability.
-            </p>
-          </div>
-        </div>
+        <DriverTable />
       </div>
     </>
   );
