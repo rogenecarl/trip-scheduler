@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { format } from "date-fns";
-import { Clock, ArrowRight, Package } from "lucide-react";
+import { ArrowRight, Package } from "lucide-react";
 import {
   Card,
   CardHeader,

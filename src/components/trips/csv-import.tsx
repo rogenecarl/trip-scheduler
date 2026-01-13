@@ -4,7 +4,6 @@ import { useState, useCallback, useRef } from "react";
 import { Upload, FileSpreadsheet, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { parseTripsCSV, validateCSVColumns, type CSVParseResult } from "@/lib/csv-parser";
-import type { ParsedTrip } from "@/lib/types";
 
 interface CSVImportProps {
   onParsed: (result: CSVParseResult) => void;

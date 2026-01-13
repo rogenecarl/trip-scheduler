@@ -1,122 +1,182 @@
+"use client";
+
 import Link from "next/link";
-import { ArrowRight, Calendar, Users, Sparkles } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { motion } from "framer-motion";
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.15,
+      delayChildren: 0.1,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 30 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.6,
+      ease: "easeOut" as const,
+    },
+  },
+};
+
+const floatVariants = {
+  animate: {
+    y: [-10, 10, -10],
+    transition: {
+      duration: 6,
+      repeat: Infinity,
+      ease: "easeInOut" as const,
+    },
+  },
+};
+
+const floatDelayedVariants = {
+  animate: {
+    y: [10, -10, 10],
+    transition: {
+      duration: 7,
+      repeat: Infinity,
+      ease: "easeInOut" as const,
+      delay: 1,
+    },
+  },
+};
+
+const floatSlowVariants = {
+  animate: {
+    y: [-15, 15, -15],
+    transition: {
+      duration: 8,
+      repeat: Infinity,
+      ease: "easeInOut" as const,
+      delay: 2,
+    },
+  },
+};
 
 export default function HeroSection() {
   return (
-    <section className="relative overflow-hidden bg-background py-20 sm:py-32">
-      {/* Background decoration */}
+    <section className="relative min-h-[calc(100vh-4rem)] flex items-center justify-center overflow-hidden bg-background">
+      {/* Animated background elements */}
       <div className="absolute inset-0 -z-10">
-        <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 size-[600px] rounded-full bg-primary/5 blur-3xl" />
-        <div className="absolute right-0 bottom-0 translate-x-1/2 translate-y-1/2 size-[400px] rounded-full bg-primary/5 blur-3xl" />
+        {/* Floating gradient orbs */}
+        <motion.div
+          className="absolute left-1/2 top-1/4 -translate-x-1/2 -translate-y-1/2 size-[600px] rounded-full bg-primary/10 blur-3xl"
+          variants={floatVariants}
+          animate="animate"
+        />
+        <motion.div
+          className="absolute right-1/4 bottom-1/4 size-[450px] rounded-full bg-primary/5 blur-3xl"
+          variants={floatDelayedVariants}
+          animate="animate"
+        />
+        <motion.div
+          className="absolute left-1/4 bottom-1/3 size-[350px] rounded-full bg-primary/5 blur-3xl"
+          variants={floatSlowVariants}
+          animate="animate"
+        />
+
+        {/* Subtle grid pattern */}
+        <div
+          className="absolute inset-0 opacity-[0.02]"
+          style={{
+            backgroundImage: `linear-gradient(to right, currentColor 1px, transparent 1px),
+                             linear-gradient(to bottom, currentColor 1px, transparent 1px)`,
+            backgroundSize: "80px 80px",
+          }}
+        />
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid gap-12 lg:grid-cols-2 lg:gap-8 items-center">
-          {/* Content */}
-          <div className="flex flex-col gap-6 text-center lg:text-left">
-            {/* Badge */}
-            <div className="flex justify-center lg:justify-start">
-              <div className="inline-flex items-center gap-2 rounded-full border bg-muted/50 px-4 py-1.5 text-sm font-medium">
-                <Sparkles className="size-4 text-primary" />
-                <span>AI-Powered Scheduling</span>
-              </div>
-            </div>
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <motion.div
+          className="flex flex-col items-center text-center gap-6"
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+        >
+          {/* Headline */}
+          <motion.h1
+            className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl"
+            variants={itemVariants}
+          >
+            <span className="block">Smart Trip Scheduling</span>
+            <span className="block bg-gradient-to-r from-primary via-primary/70 to-primary bg-clip-text text-transparent">
+              Made Effortless
+            </span>
+          </motion.h1>
 
-            {/* Headline */}
-            <h1 className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
-              Smart Trip Scheduling,{" "}
-              <span className="text-primary">Powered by AI</span>
-            </h1>
+          {/* Subheadline */}
+          <motion.p
+            className="text-lg text-muted-foreground sm:text-xl max-w-2xl leading-relaxed"
+            variants={itemVariants}
+          >
+            Automatically assign drivers to trips based on availability.
+            Eliminate scheduling conflicts, reduce manual work, and keep your
+            fleet operations running at peak efficiency.
+          </motion.p>
 
-            {/* Subheadline */}
-            <p className="text-lg text-muted-foreground sm:text-xl max-w-xl mx-auto lg:mx-0">
-              Automatically assign drivers to trips based on their availability.
-              Save time, reduce errors, and keep your operations running smoothly.
-            </p>
+          {/* CTAs */}
+          <motion.div
+            className="flex flex-col sm:flex-row gap-4 mt-4"
+            variants={itemVariants}
+          >
+            <Button
+              asChild
+              size="lg"
+              className="gap-2 group transition-all duration-300 hover:scale-105 hover:shadow-lg"
+            >
+              <Link href="/dashboard">
+                Get Started
+                <ArrowRight className="size-4 transition-transform duration-300 group-hover:translate-x-1" />
+              </Link>
+            </Button>
+          </motion.div>
 
-            {/* CTAs */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-              <Button asChild size="lg" className="gap-2">
-                <Link href="/schedule">
-                  Get Started
-                  <ArrowRight className="size-4" />
-                </Link>
-              </Button>
-              <Button asChild variant="outline" size="lg">
-                <Link href="#features">Learn More</Link>
-              </Button>
-            </div>
-
-            {/* Stats */}
-            <div className="mt-8 grid grid-cols-3 gap-4 sm:gap-8 border-t pt-8">
-              <div className="text-center lg:text-left">
-                <div className="text-2xl font-bold sm:text-3xl">100%</div>
-                <div className="text-sm text-muted-foreground">Automated</div>
-              </div>
-              <div className="text-center lg:text-left">
-                <div className="text-2xl font-bold sm:text-3xl">24/7</div>
-                <div className="text-sm text-muted-foreground">Availability</div>
-              </div>
-              <div className="text-center lg:text-left">
-                <div className="text-2xl font-bold sm:text-3xl">0</div>
-                <div className="text-sm text-muted-foreground">Scheduling Conflicts</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Visual */}
-          <div className="relative lg:pl-8">
-            <div className="relative mx-auto max-w-md lg:max-w-none">
-              {/* Main card */}
-              <div className="rounded-2xl border bg-card p-6 shadow-lg">
-                <div className="mb-4 flex items-center justify-between">
-                  <h3 className="font-semibold">Today&apos;s Schedule</h3>
-                  <span className="text-sm text-muted-foreground">3 trips</span>
-                </div>
-                <div className="space-y-3">
-                  {[
-                    { id: "TRIP-001", driver: "John D.", time: "09:00 AM" },
-                    { id: "TRIP-002", driver: "Sarah M.", time: "11:30 AM" },
-                    { id: "TRIP-003", driver: "Mike R.", time: "02:00 PM" },
-                  ].map((trip) => (
-                    <div
-                      key={trip.id}
-                      className="flex items-center justify-between rounded-lg border bg-muted/50 p-3"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="flex size-10 items-center justify-center rounded-full bg-primary/10">
-                          <Users className="size-5 text-primary" />
-                        </div>
-                        <div>
-                          <div className="font-medium">{trip.id}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {trip.driver}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-sm text-muted-foreground">{trip.time}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Floating card - Calendar */}
-              <div className="absolute -right-4 -bottom-4 rounded-xl border bg-card p-4 shadow-lg sm:-right-8 sm:-bottom-8">
-                <div className="flex items-center gap-3">
-                  <div className="flex size-10 items-center justify-center rounded-full bg-green-100">
-                    <Calendar className="size-5 text-green-600" />
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium">All Drivers Assigned</div>
-                    <div className="text-xs text-muted-foreground">Automatically</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+          {/* Trust indicators */}
+          <motion.div
+            className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 pt-12 text-sm text-muted-foreground"
+            variants={itemVariants}
+          >
+            {[
+              "No scheduling conflicts",
+              "Instant AI assignments",
+              "Real-time availability",
+            ].map((text, index) => (
+              <motion.div
+                key={text}
+                className="flex items-center gap-2"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.8 + index * 0.1, duration: 0.4 }}
+                whileHover={{ scale: 1.05 }}
+              >
+                <motion.div
+                  className="size-2 rounded-full bg-green-500"
+                  animate={{ scale: [1, 1.2, 1] }}
+                  transition={{
+                    duration: 2,
+                    repeat: Infinity,
+                    delay: index * 0.2,
+                  }}
+                />
+                <span>{text}</span>
+              </motion.div>
+            ))}
+          </motion.div>
+        </motion.div>
       </div>
+
+      {/* Bottom fade gradient */}
+      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent pointer-events-none" />
     </section>
   );
 }

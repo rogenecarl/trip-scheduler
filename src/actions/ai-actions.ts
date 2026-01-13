@@ -210,19 +210,18 @@ export async function autoAssignDrivers(): Promise<AIAssignmentResult> {
       return true;
     });
 
-    // Create assignments in database (use transaction for atomicity)
-    await prisma.$transaction(
-      validAssignments.map((assignment) =>
-        prisma.tripAssignment.create({
-          data: {
-            tripId: assignment.tripId,
-            driverId: assignment.driverId,
-            isAutoAssigned: true,
-            aiReasoning: assignment.reasoning,
-          },
-        })
-      )
-    );
+    // Create assignments in database using createMany for better performance
+    if (validAssignments.length > 0) {
+      await prisma.tripAssignment.createMany({
+        data: validAssignments.map((assignment) => ({
+          tripId: assignment.tripId,
+          driverId: assignment.driverId,
+          isAutoAssigned: true,
+          aiReasoning: assignment.reasoning,
+        })),
+        skipDuplicates: true,
+      });
+    }
 
     revalidatePath("/dashboard/assignments");
     revalidatePath("/dashboard/trips");
