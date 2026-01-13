@@ -139,7 +139,7 @@ export function AssignmentTable({ initialData, onPendingCountChange }: Assignmen
                   <TableHead className="font-medium">Day</TableHead>
                   <TableHead className="font-medium">Status</TableHead>
                   <TableHead className="font-medium">Driver</TableHead>
-                  <TableHead className="font-medium">AI Reasoning</TableHead>
+                  <TableHead className="font-medium">Analysis</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
