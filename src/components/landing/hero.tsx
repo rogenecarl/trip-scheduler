@@ -103,25 +103,25 @@ export default function HeroSection() {
           initial="hidden"
           animate="visible"
         >
-          {/* Headline */}
+          {/* Headline - Clear workflow */}
           <motion.h1
             className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl"
             variants={itemVariants}
           >
-            <span className="block">Smart Trip Scheduling</span>
+            <span className="block">Import Trips</span>
             <span className="block bg-linear-to-r from-cyan-500 via-primary/70 to-emerald-200 bg-clip-text text-transparent">
-              Powered By AI
+              Assign Drivers
             </span>
           </motion.h1>
 
-          {/* Subheadline */}
+          {/* Subheadline - Clear value proposition */}
           <motion.p
             className="text-lg text-muted-foreground sm:text-xl max-w-2xl leading-relaxed"
             variants={itemVariants}
           >
-            Automatically assign drivers to trips based on availability.
-            Eliminate scheduling conflicts, reduce manual work, and keep your
-            fleet operations running at peak efficiency.
+            Let AI handle driver assignments in seconds, not hours.
+            Simply import your trips, and watch as the right drivers
+            get matched automatically based on their availability.
           </motion.p>
 
           {/* CTAs */}
@@ -132,24 +132,24 @@ export default function HeroSection() {
             <Button
               asChild
               size="lg"
-              className="gap-2 group transition-all duration-300 hover:scale-105 hover:bg-cyan-800 bg-cyan-700"
+              className="gap-2 group transition-all duration-300 hover:scale-105 hover:bg-cyan-800 bg-cyan-700 text-base px-8"
             >
               <Link href="/dashboard">
-                Get Started
+                Start Scheduling Now
                 <ArrowRight className="size-4 transition-transform duration-300 group-hover:translate-x-1" />
               </Link>
             </Button>
           </motion.div>
 
-          {/* Trust indicators */}
+          {/* Trust indicators - Specific benefits */}
           <motion.div
             className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 pt-12 text-sm text-muted-foreground"
             variants={itemVariants}
           >
             {[
-              "No scheduling conflicts",
-              "Instant AI assignments",
-              "Real-time availability",
+              "Assign 100+ trips in seconds",
+              "Zero scheduling conflicts",
+              "Works with any fleet size",
             ].map((text, index) => (
               <motion.div
                 key={text}
