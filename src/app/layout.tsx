@@ -4,6 +4,7 @@ import "./globals.css";
 import QueryProvider from "@/context/QueryProvider";
 import NextTopLoader from "nextjs-toploader";
 import { Toaster } from "sonner";
+import { Analytics } from '@vercel/analytics/next';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,6 +37,7 @@ export default function RootLayout({
         <QueryProvider>
           <NextTopLoader showSpinner={false} height={2} color="#000000" />
           {children}
+          <Analytics />
           <Toaster position="top-right" richColors closeButton />
         </QueryProvider>
       </body>
