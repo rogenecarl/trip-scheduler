@@ -37,6 +37,7 @@ export interface Trip {
   tripDate: Date;
   dayOfWeek: number; // 0-6
   tripStage: string; // "Upcoming" | "Canceled"
+  plannedArrivalTime?: string | null; // 24h format (e.g., "23:58", "7:35")
   weekUploadId?: string | null;
   createdAt: Date;
   weekUpload?: WeekUpload | null;
@@ -170,6 +171,8 @@ export interface ParsedTrip {
   tripId: string;
   tripDate: Date;
   dayOfWeek: number;
+  tripStage: string; // "Upcoming" | "Canceled"
+  plannedArrivalTime: string | null; // 24h format (e.g., "23:58", "7:35")
 }
 
 export interface CSVImportResult {

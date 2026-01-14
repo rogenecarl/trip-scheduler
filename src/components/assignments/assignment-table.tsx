@@ -251,7 +251,9 @@ export function AssignmentTable({ onPendingCountChange }: AssignmentTableProps) 
                     </div>
                   </TableHead>
                   <TableHead className="font-medium">Trip ID</TableHead>
+                  <TableHead className="font-medium">Stage</TableHead>
                   <TableHead className="font-medium">Date</TableHead>
+                  <TableHead className="font-medium">Time</TableHead>
                   <TableHead className="font-medium">Day</TableHead>
                   <TableHead className="font-medium">Status</TableHead>
                   <TableHead className="font-medium">Driver</TableHead>
@@ -348,7 +350,17 @@ function AssignmentRow({
         />
       </TableCell>
       <TableCell className="font-mono text-sm">{trip.tripId}</TableCell>
+      <TableCell>
+        <Badge
+          variant={trip.tripStage === "Upcoming" ? "default" : "secondary"}
+        >
+          {trip.tripStage}
+        </Badge>
+      </TableCell>
       <TableCell>{format(new Date(trip.tripDate), "MMM d, yyyy")}</TableCell>
+      <TableCell className="font-mono text-sm">
+        {trip.plannedArrivalTime || "—"}
+      </TableCell>
       <TableCell>
         <Badge variant="outline">{DAY_NAMES_SHORT[trip.dayOfWeek]}</Badge>
       </TableCell>
@@ -432,10 +444,21 @@ function AssignmentCard({
             className="mt-1"
           />
           <div>
-            <p className="font-mono text-sm font-medium">{trip.tripId}</p>
+            <div className="flex items-center gap-2">
+              <p className="font-mono text-sm font-medium">{trip.tripId}</p>
+              <Badge
+                variant={trip.tripStage === "Upcoming" ? "default" : "secondary"}
+                className="text-xs"
+              >
+                {trip.tripStage}
+              </Badge>
+            </div>
             <p className="text-sm text-muted-foreground">
               {format(new Date(trip.tripDate), "MMM d, yyyy")} (
               {DAY_NAMES_SHORT[trip.dayOfWeek]})
+              {trip.plannedArrivalTime && (
+                <span className="font-mono ml-1">@ {trip.plannedArrivalTime}</span>
+              )}
             </p>
           </div>
         </div>
@@ -489,7 +512,9 @@ function AssignmentTableSkeleton() {
               </div>
             </TableHead>
             <TableHead className="font-medium">Trip ID</TableHead>
+            <TableHead className="font-medium">Stage</TableHead>
             <TableHead className="font-medium">Date</TableHead>
+            <TableHead className="font-medium">Time</TableHead>
             <TableHead className="font-medium">Day</TableHead>
             <TableHead className="font-medium">Status</TableHead>
             <TableHead className="font-medium">Driver</TableHead>
@@ -506,7 +531,13 @@ function AssignmentTableSkeleton() {
                 <Skeleton className="h-4 w-28" />
               </TableCell>
               <TableCell>
+                <Skeleton className="h-5 w-16" />
+              </TableCell>
+              <TableCell>
                 <Skeleton className="h-4 w-24" />
+              </TableCell>
+              <TableCell>
+                <Skeleton className="h-4 w-12" />
               </TableCell>
               <TableCell>
                 <Skeleton className="h-5 w-10" />

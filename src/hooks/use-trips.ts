@@ -14,7 +14,7 @@ import {
   deleteTrip,
   deleteTrips,
 } from "@/actions/trip-actions";
-import type { Trip } from "@/lib/types";
+import type { Trip, ParsedTrip } from "@/lib/types";
 
 // ============================================
 // QUERY: List all trips
@@ -70,9 +70,7 @@ export function useImportTrips() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (
-      trips: { tripId: string; tripDate: Date; dayOfWeek: number }[]
-    ) => {
+    mutationFn: async (trips: ParsedTrip[]) => {
       const result = await importTripsFromCSVEnhanced(trips);
       if (!result.success) throw new Error(result.error);
       return result.data;

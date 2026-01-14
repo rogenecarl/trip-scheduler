@@ -856,6 +856,7 @@ export const TripScalarFieldEnum = {
   tripDate: 'tripDate',
   dayOfWeek: 'dayOfWeek',
   tripStage: 'tripStage',
+  plannedArrivalTime: 'plannedArrivalTime',
   weekUploadId: 'weekUploadId',
   createdAt: 'createdAt'
 } as const

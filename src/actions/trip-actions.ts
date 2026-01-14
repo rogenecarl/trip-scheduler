@@ -175,6 +175,8 @@ export async function importTripsFromCSV(
     tripId: string;
     tripDate: Date;
     dayOfWeek: number;
+    tripStage: string;
+    plannedArrivalTime: string | null;
   }[]
 ): Promise<ActionResponse<CSVImportResult>> {
   try {
@@ -197,7 +199,8 @@ export async function importTripsFromCSV(
           tripId: trip.tripId,
           tripDate: trip.tripDate,
           dayOfWeek: trip.dayOfWeek,
-          tripStage: "Upcoming",
+          tripStage: trip.tripStage,
+          plannedArrivalTime: trip.plannedArrivalTime,
         })),
         skipDuplicates: true,
       });
@@ -222,6 +225,8 @@ export async function importTripsFromCSVEnhanced(
     tripId: string;
     tripDate: Date;
     dayOfWeek: number;
+    tripStage: string;
+    plannedArrivalTime: string | null;
   }[]
 ): Promise<ActionResponse<CSVImportResultEnhanced>> {
   try {
@@ -249,7 +254,8 @@ export async function importTripsFromCSVEnhanced(
             tripId: trip.tripId,
             tripDate: trip.tripDate,
             dayOfWeek: trip.dayOfWeek,
-            tripStage: "Upcoming",
+            tripStage: trip.tripStage,
+            plannedArrivalTime: trip.plannedArrivalTime,
           })),
           skipDuplicates: true,
         });

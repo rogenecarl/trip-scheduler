@@ -9,6 +9,7 @@ import type { ParsedTrip } from "./types";
 interface CSVRow {
   "Trip ID": string;
   "Stop 1 Planned Arrival Date": string;
+  "Stop 1 Planned Arrival Time": string;
   "Trip Stage": string;
 }
 
@@ -60,6 +61,37 @@ function parseFlexibleDate(dateStr: string): Date | null {
 }
 
 // ============================================
+// TIME PARSING
+// ============================================
+
+/**
+ * Parses and normalizes a time string to 24h format (HH:mm)
+ * Handles formats like "23:58", "1:10", "7:35"
+ * Returns null if invalid
+ */
+function parseTime(timeStr: string): string | null {
+  if (!timeStr || typeof timeStr !== "string") return null;
+
+  const trimmed = timeStr.trim();
+  if (!trimmed) return null;
+
+  // Match HH:mm or H:mm format
+  const match = trimmed.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return null;
+
+  const hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+
+  // Validate ranges
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+    return null;
+  }
+
+  // Return normalized format (always HH:mm)
+  return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
+}
+
+// ============================================
 // CSV PARSING
 // ============================================
 
@@ -89,8 +121,10 @@ export function parseTripsCSV(file: File): Promise<CSVParseResult> {
         let skippedInvalidDate = 0;
 
         for (const row of results.data) {
+          const tripStage = row["Trip Stage"] || "Upcoming";
+
           // Skip canceled trips
-          if (row["Trip Stage"] === "Canceled") {
+          if (tripStage === "Canceled") {
             skippedCanceled++;
             continue;
           }
@@ -113,10 +147,16 @@ export function parseTripsCSV(file: File): Promise<CSVParseResult> {
             continue;
           }
 
+          // Parse arrival time (24h format like "23:58" or "1:10")
+          const timeStr = row["Stop 1 Planned Arrival Time"];
+          const plannedArrivalTime = parseTime(timeStr);
+
           trips.set(tripId, {
             tripId,
             tripDate,
             dayOfWeek: getDay(tripDate),
+            tripStage,
+            plannedArrivalTime,
           });
         }
 
@@ -144,7 +184,12 @@ export function validateCSVColumns(file: File): Promise<{
   valid: boolean;
   missingColumns: string[];
 }> {
-  const requiredColumns = ["Trip ID", "Stop 1 Planned Arrival Date", "Trip Stage"];
+  const requiredColumns = [
+    "Trip ID",
+    "Stop 1 Planned Arrival Date",
+    "Stop 1 Planned Arrival Time",
+    "Trip Stage",
+  ];
 
   return new Promise((resolve, reject) => {
     Papa.parse(file, {

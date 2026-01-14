@@ -83,7 +83,9 @@ export function CSVPreview({
               <TableHeader>
                 <TableRow className="bg-muted/50">
                   <TableHead className="font-medium">Trip ID</TableHead>
+                  <TableHead className="font-medium">Stage</TableHead>
                   <TableHead className="font-medium">Date</TableHead>
+                  <TableHead className="font-medium">Time</TableHead>
                   <TableHead className="font-medium">Day</TableHead>
                 </TableRow>
               </TableHeader>
@@ -93,7 +95,17 @@ export function CSVPreview({
                     <TableCell className="font-mono text-sm">
                       {trip.tripId}
                     </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={trip.tripStage === "Upcoming" ? "default" : "secondary"}
+                      >
+                        {trip.tripStage}
+                      </Badge>
+                    </TableCell>
                     <TableCell>{format(trip.tripDate, "MMM d, yyyy")}</TableCell>
+                    <TableCell className="font-mono text-sm">
+                      {trip.plannedArrivalTime || "-"}
+                    </TableCell>
                     <TableCell>
                       <Badge variant="outline">
                         {DAY_NAMES_SHORT[trip.dayOfWeek]}

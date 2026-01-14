@@ -40,6 +40,7 @@ export type TripMinAggregateOutputType = {
   tripDate: Date | null
   dayOfWeek: number | null
   tripStage: string | null
+  plannedArrivalTime: string | null
   weekUploadId: string | null
   createdAt: Date | null
 }
@@ -50,6 +51,7 @@ export type TripMaxAggregateOutputType = {
   tripDate: Date | null
   dayOfWeek: number | null
   tripStage: string | null
+  plannedArrivalTime: string | null
   weekUploadId: string | null
   createdAt: Date | null
 }
@@ -60,6 +62,7 @@ export type TripCountAggregateOutputType = {
   tripDate: number
   dayOfWeek: number
   tripStage: number
+  plannedArrivalTime: number
   weekUploadId: number
   createdAt: number
   _all: number
@@ -80,6 +83,7 @@ export type TripMinAggregateInputType = {
   tripDate?: true
   dayOfWeek?: true
   tripStage?: true
+  plannedArrivalTime?: true
   weekUploadId?: true
   createdAt?: true
 }
@@ -90,6 +94,7 @@ export type TripMaxAggregateInputType = {
   tripDate?: true
   dayOfWeek?: true
   tripStage?: true
+  plannedArrivalTime?: true
   weekUploadId?: true
   createdAt?: true
 }
@@ -100,6 +105,7 @@ export type TripCountAggregateInputType = {
   tripDate?: true
   dayOfWeek?: true
   tripStage?: true
+  plannedArrivalTime?: true
   weekUploadId?: true
   createdAt?: true
   _all?: true
@@ -197,6 +203,7 @@ export type TripGroupByOutputType = {
   tripDate: Date
   dayOfWeek: number
   tripStage: string
+  plannedArrivalTime: string | null
   weekUploadId: string | null
   createdAt: Date
   _count: TripCountAggregateOutputType | null
@@ -230,6 +237,7 @@ export type TripWhereInput = {
   tripDate?: Prisma.DateTimeFilter<"Trip"> | Date | string
   dayOfWeek?: Prisma.IntFilter<"Trip"> | number
   tripStage?: Prisma.StringFilter<"Trip"> | string
+  plannedArrivalTime?: Prisma.StringNullableFilter<"Trip"> | string | null
   weekUploadId?: Prisma.StringNullableFilter<"Trip"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Trip"> | Date | string
   weekUpload?: Prisma.XOR<Prisma.WeekUploadNullableScalarRelationFilter, Prisma.WeekUploadWhereInput> | null
@@ -242,6 +250,7 @@ export type TripOrderByWithRelationInput = {
   tripDate?: Prisma.SortOrder
   dayOfWeek?: Prisma.SortOrder
   tripStage?: Prisma.SortOrder
+  plannedArrivalTime?: Prisma.SortOrderInput | Prisma.SortOrder
   weekUploadId?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   weekUpload?: Prisma.WeekUploadOrderByWithRelationInput
@@ -257,6 +266,7 @@ export type TripWhereUniqueInput = Prisma.AtLeast<{
   tripDate?: Prisma.DateTimeFilter<"Trip"> | Date | string
   dayOfWeek?: Prisma.IntFilter<"Trip"> | number
   tripStage?: Prisma.StringFilter<"Trip"> | string
+  plannedArrivalTime?: Prisma.StringNullableFilter<"Trip"> | string | null
   weekUploadId?: Prisma.StringNullableFilter<"Trip"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Trip"> | Date | string
   weekUpload?: Prisma.XOR<Prisma.WeekUploadNullableScalarRelationFilter, Prisma.WeekUploadWhereInput> | null
@@ -269,6 +279,7 @@ export type TripOrderByWithAggregationInput = {
   tripDate?: Prisma.SortOrder
   dayOfWeek?: Prisma.SortOrder
   tripStage?: Prisma.SortOrder
+  plannedArrivalTime?: Prisma.SortOrderInput | Prisma.SortOrder
   weekUploadId?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   _count?: Prisma.TripCountOrderByAggregateInput
@@ -287,6 +298,7 @@ export type TripScalarWhereWithAggregatesInput = {
   tripDate?: Prisma.DateTimeWithAggregatesFilter<"Trip"> | Date | string
   dayOfWeek?: Prisma.IntWithAggregatesFilter<"Trip"> | number
   tripStage?: Prisma.StringWithAggregatesFilter<"Trip"> | string
+  plannedArrivalTime?: Prisma.StringNullableWithAggregatesFilter<"Trip"> | string | null
   weekUploadId?: Prisma.StringNullableWithAggregatesFilter<"Trip"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Trip"> | Date | string
 }
@@ -297,6 +309,7 @@ export type TripCreateInput = {
   tripDate: Date | string
   dayOfWeek: number
   tripStage?: string
+  plannedArrivalTime?: string | null
   createdAt?: Date | string
   weekUpload?: Prisma.WeekUploadCreateNestedOneWithoutTripsInput
   assignment?: Prisma.TripAssignmentCreateNestedOneWithoutTripInput
@@ -308,6 +321,7 @@ export type TripUncheckedCreateInput = {
   tripDate: Date | string
   dayOfWeek: number
   tripStage?: string
+  plannedArrivalTime?: string | null
   weekUploadId?: string | null
   createdAt?: Date | string
   assignment?: Prisma.TripAssignmentUncheckedCreateNestedOneWithoutTripInput
@@ -319,6 +333,7 @@ export type TripUpdateInput = {
   tripDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   dayOfWeek?: Prisma.IntFieldUpdateOperationsInput | number
   tripStage?: Prisma.StringFieldUpdateOperationsInput | string
+  plannedArrivalTime?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   weekUpload?: Prisma.WeekUploadUpdateOneWithoutTripsNestedInput
   assignment?: Prisma.TripAssignmentUpdateOneWithoutTripNestedInput
@@ -330,6 +345,7 @@ export type TripUncheckedUpdateInput = {
   tripDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   dayOfWeek?: Prisma.IntFieldUpdateOperationsInput | number
   tripStage?: Prisma.StringFieldUpdateOperationsInput | string
+  plannedArrivalTime?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   weekUploadId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assignment?: Prisma.TripAssignmentUncheckedUpdateOneWithoutTripNestedInput
@@ -341,6 +357,7 @@ export type TripCreateManyInput = {
   tripDate: Date | string
   dayOfWeek: number
   tripStage?: string
+  plannedArrivalTime?: string | null
   weekUploadId?: string | null
   createdAt?: Date | string
 }
@@ -351,6 +368,7 @@ export type TripUpdateManyMutationInput = {
   tripDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   dayOfWeek?: Prisma.IntFieldUpdateOperationsInput | number
   tripStage?: Prisma.StringFieldUpdateOperationsInput | string
+  plannedArrivalTime?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -360,6 +378,7 @@ export type TripUncheckedUpdateManyInput = {
   tripDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   dayOfWeek?: Prisma.IntFieldUpdateOperationsInput | number
   tripStage?: Prisma.StringFieldUpdateOperationsInput | string
+  plannedArrivalTime?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   weekUploadId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -380,6 +399,7 @@ export type TripCountOrderByAggregateInput = {
   tripDate?: Prisma.SortOrder
   dayOfWeek?: Prisma.SortOrder
   tripStage?: Prisma.SortOrder
+  plannedArrivalTime?: Prisma.SortOrder
   weekUploadId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
@@ -394,6 +414,7 @@ export type TripMaxOrderByAggregateInput = {
   tripDate?: Prisma.SortOrder
   dayOfWeek?: Prisma.SortOrder
   tripStage?: Prisma.SortOrder
+  plannedArrivalTime?: Prisma.SortOrder
   weekUploadId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
@@ -404,6 +425,7 @@ export type TripMinOrderByAggregateInput = {
   tripDate?: Prisma.SortOrder
   dayOfWeek?: Prisma.SortOrder
   tripStage?: Prisma.SortOrder
+  plannedArrivalTime?: Prisma.SortOrder
   weekUploadId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
@@ -483,6 +505,7 @@ export type TripCreateWithoutWeekUploadInput = {
   tripDate: Date | string
   dayOfWeek: number
   tripStage?: string
+  plannedArrivalTime?: string | null
   createdAt?: Date | string
   assignment?: Prisma.TripAssignmentCreateNestedOneWithoutTripInput
 }
@@ -493,6 +516,7 @@ export type TripUncheckedCreateWithoutWeekUploadInput = {
   tripDate: Date | string
   dayOfWeek: number
   tripStage?: string
+  plannedArrivalTime?: string | null
   createdAt?: Date | string
   assignment?: Prisma.TripAssignmentUncheckedCreateNestedOneWithoutTripInput
 }
@@ -532,6 +556,7 @@ export type TripScalarWhereInput = {
   tripDate?: Prisma.DateTimeFilter<"Trip"> | Date | string
   dayOfWeek?: Prisma.IntFilter<"Trip"> | number
   tripStage?: Prisma.StringFilter<"Trip"> | string
+  plannedArrivalTime?: Prisma.StringNullableFilter<"Trip"> | string | null
   weekUploadId?: Prisma.StringNullableFilter<"Trip"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Trip"> | Date | string
 }
@@ -542,6 +567,7 @@ export type TripCreateWithoutAssignmentInput = {
   tripDate: Date | string
   dayOfWeek: number
   tripStage?: string
+  plannedArrivalTime?: string | null
   createdAt?: Date | string
   weekUpload?: Prisma.WeekUploadCreateNestedOneWithoutTripsInput
 }
@@ -552,6 +578,7 @@ export type TripUncheckedCreateWithoutAssignmentInput = {
   tripDate: Date | string
   dayOfWeek: number
   tripStage?: string
+  plannedArrivalTime?: string | null
   weekUploadId?: string | null
   createdAt?: Date | string
 }
@@ -578,6 +605,7 @@ export type TripUpdateWithoutAssignmentInput = {
   tripDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   dayOfWeek?: Prisma.IntFieldUpdateOperationsInput | number
   tripStage?: Prisma.StringFieldUpdateOperationsInput | string
+  plannedArrivalTime?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   weekUpload?: Prisma.WeekUploadUpdateOneWithoutTripsNestedInput
 }
@@ -588,6 +616,7 @@ export type TripUncheckedUpdateWithoutAssignmentInput = {
   tripDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   dayOfWeek?: Prisma.IntFieldUpdateOperationsInput | number
   tripStage?: Prisma.StringFieldUpdateOperationsInput | string
+  plannedArrivalTime?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   weekUploadId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -598,6 +627,7 @@ export type TripCreateManyWeekUploadInput = {
   tripDate: Date | string
   dayOfWeek: number
   tripStage?: string
+  plannedArrivalTime?: string | null
   createdAt?: Date | string
 }
 
@@ -607,6 +637,7 @@ export type TripUpdateWithoutWeekUploadInput = {
   tripDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   dayOfWeek?: Prisma.IntFieldUpdateOperationsInput | number
   tripStage?: Prisma.StringFieldUpdateOperationsInput | string
+  plannedArrivalTime?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assignment?: Prisma.TripAssignmentUpdateOneWithoutTripNestedInput
 }
@@ -617,6 +648,7 @@ export type TripUncheckedUpdateWithoutWeekUploadInput = {
   tripDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   dayOfWeek?: Prisma.IntFieldUpdateOperationsInput | number
   tripStage?: Prisma.StringFieldUpdateOperationsInput | string
+  plannedArrivalTime?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assignment?: Prisma.TripAssignmentUncheckedUpdateOneWithoutTripNestedInput
 }
@@ -627,6 +659,7 @@ export type TripUncheckedUpdateManyWithoutWeekUploadInput = {
   tripDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   dayOfWeek?: Prisma.IntFieldUpdateOperationsInput | number
   tripStage?: Prisma.StringFieldUpdateOperationsInput | string
+  plannedArrivalTime?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -638,6 +671,7 @@ export type TripSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   tripDate?: boolean
   dayOfWeek?: boolean
   tripStage?: boolean
+  plannedArrivalTime?: boolean
   weekUploadId?: boolean
   createdAt?: boolean
   weekUpload?: boolean | Prisma.Trip$weekUploadArgs<ExtArgs>
@@ -650,6 +684,7 @@ export type TripSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   tripDate?: boolean
   dayOfWeek?: boolean
   tripStage?: boolean
+  plannedArrivalTime?: boolean
   weekUploadId?: boolean
   createdAt?: boolean
   weekUpload?: boolean | Prisma.Trip$weekUploadArgs<ExtArgs>
@@ -661,6 +696,7 @@ export type TripSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   tripDate?: boolean
   dayOfWeek?: boolean
   tripStage?: boolean
+  plannedArrivalTime?: boolean
   weekUploadId?: boolean
   createdAt?: boolean
   weekUpload?: boolean | Prisma.Trip$weekUploadArgs<ExtArgs>
@@ -672,11 +708,12 @@ export type TripSelectScalar = {
   tripDate?: boolean
   dayOfWeek?: boolean
   tripStage?: boolean
+  plannedArrivalTime?: boolean
   weekUploadId?: boolean
   createdAt?: boolean
 }
 
-export type TripOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "tripId" | "tripDate" | "dayOfWeek" | "tripStage" | "weekUploadId" | "createdAt", ExtArgs["result"]["trip"]>
+export type TripOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "tripId" | "tripDate" | "dayOfWeek" | "tripStage" | "plannedArrivalTime" | "weekUploadId" | "createdAt", ExtArgs["result"]["trip"]>
 export type TripInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   weekUpload?: boolean | Prisma.Trip$weekUploadArgs<ExtArgs>
   assignment?: boolean | Prisma.Trip$assignmentArgs<ExtArgs>
@@ -700,6 +737,7 @@ export type $TripPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     tripDate: Date
     dayOfWeek: number
     tripStage: string
+    plannedArrivalTime: string | null
     weekUploadId: string | null
     createdAt: Date
   }, ExtArgs["result"]["trip"]>
@@ -1132,6 +1170,7 @@ export interface TripFieldRefs {
   readonly tripDate: Prisma.FieldRef<"Trip", 'DateTime'>
   readonly dayOfWeek: Prisma.FieldRef<"Trip", 'Int'>
   readonly tripStage: Prisma.FieldRef<"Trip", 'String'>
+  readonly plannedArrivalTime: Prisma.FieldRef<"Trip", 'String'>
   readonly weekUploadId: Prisma.FieldRef<"Trip", 'String'>
   readonly createdAt: Prisma.FieldRef<"Trip", 'DateTime'>
 }

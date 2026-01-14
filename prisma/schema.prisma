@@ -74,11 +74,12 @@ model WeekUpload {
 }
 
 model Trip {
-  id        String   @id @default(cuid())
-  tripId    String   @unique // e.g., "T-115JCVWMY" - UNIQUE (same Trip ID = 1 driver)
-  tripDate  DateTime // From "Stop 1 Planned Arrival Date"
-  dayOfWeek Int // 0-6, derived from tripDate
-  tripStage String   @default("Upcoming") // "Upcoming" or "Canceled"
+  id                 String   @id @default(cuid())
+  tripId             String   @unique // e.g., "T-115JCVWMY" - UNIQUE (same Trip ID = 1 driver)
+  tripDate           DateTime // From "Stop 1 Planned Arrival Date"
+  dayOfWeek          Int // 0-6, derived from tripDate
+  tripStage          String   @default("Upcoming") // "Upcoming" or "Canceled"
+  plannedArrivalTime String?  // From "Stop 1 Planned Arrival Time" in 24h format (e.g., "23:58", "7:35")
 
   // Optional: Link to CSV upload (null if manually added)
   weekUploadId String?
