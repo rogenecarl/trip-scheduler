@@ -1,11 +1,11 @@
 /**
  * Fast Trip Assignment Algorithm
  * - Matches trips to drivers by day of week availability
+ * - Treats early morning trips (before 5 AM) as previous day's "night shift"
  * - Ensures driver is not double-booked at the same time slot
  * - Checks across midnight (e.g., 23:57 on Day 1 conflicts with 01:11 on Day 2)
  * - A driver CAN do multiple trips if times are far enough apart
- * - Prioritizes high-priority drivers (1 = high, 2 = medium, 3 = low)
- * - Balances workload evenly within the same priority tier
+ * - Selection priority: 1) Driver priority, 2) Workload balance, 3) Name (A-Z)
  * - No AI = instant results (~1-5ms for 100 trips)
  */
 
@@ -15,6 +15,13 @@
 // - 3 hours: medium trips with travel
 // - 4 hours: long trips or need rest breaks
 const MIN_HOURS_BETWEEN_TRIPS = 3;
+
+// Night shift cutoff hour (24-hour format)
+// Trips before this hour are treated as belonging to the previous day for availability matching
+// Example: A trip at 00:20 Wednesday is treated as a "Tuesday night" shift
+// - 5 = 5:00 AM (trips from midnight to 4:59 AM count as previous day)
+// - 6 = 6:00 AM (trips from midnight to 5:59 AM count as previous day)
+const NIGHT_SHIFT_CUTOFF_HOUR = 5;
 
 type Trip = {
   id: string;
@@ -63,6 +70,25 @@ type ExistingAssignment = {
 };
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+/**
+ * Get the effective day of week for availability matching
+ * Trips before NIGHT_SHIFT_CUTOFF_HOUR (5 AM) are treated as belonging to the previous day
+ * Example: 00:20 Wednesday → Tuesday (since it's a "Tuesday night" shift)
+ * Example: 05:00 Wednesday → Wednesday (5 AM or later = current day)
+ */
+function getEffectiveDayOfWeek(dayOfWeek: number, time: string | null): number {
+  const parsed = parseTime(time);
+
+  // If no time or time is at/after cutoff, use calendar day
+  if (!parsed || parsed.hours >= NIGHT_SHIFT_CUTOFF_HOUR) {
+    return dayOfWeek;
+  }
+
+  // Time is before cutoff (e.g., 00:20) - treat as previous day
+  // Wrap from Sunday (0) to Saturday (6)
+  return dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+}
 
 /**
  * Parse time string "HH:MM" or "H:MM" to hours and minutes
@@ -170,13 +196,19 @@ export function assignTripsToDrivers(
     }
   }
 
-  // Build lookup: dayOfWeek -> available drivers sorted by priority
+  // Build lookup: dayOfWeek -> available drivers sorted by priority, then by name
   // Pre-sorting allows faster selection during assignment
   const driversByDay = new Map<number, Driver[]>();
   for (let day = 0; day < 7; day++) {
     const dayDrivers = drivers
       .filter((d) => d.availability.some((a) => a.dayOfWeek === day))
-      .sort((a, b) => (a.priority ?? 2) - (b.priority ?? 2)); // Sort by priority (1 first)
+      .sort((a, b) => {
+        // Primary: sort by priority (lower number = higher priority)
+        const priorityDiff = (a.priority ?? 2) - (b.priority ?? 2);
+        if (priorityDiff !== 0) return priorityDiff;
+        // Secondary: sort by name alphabetically
+        return a.name.localeCompare(b.name);
+      });
     driversByDay.set(day, dayDrivers);
   }
 
@@ -185,7 +217,11 @@ export function assignTripsToDrivers(
 
   for (const trip of trips) {
     const tripTimestamp = getTimestamp(trip.tripDate, trip.plannedArrivalTime);
-    const dayDrivers = driversByDay.get(trip.dayOfWeek) || [];
+
+    // Get effective day for availability matching
+    // Early morning trips (before cutoff) are treated as previous day's shift
+    const effectiveDay = getEffectiveDayOfWeek(trip.dayOfWeek, trip.plannedArrivalTime);
+    const dayDrivers = driversByDay.get(effectiveDay) || [];
 
     // Filter out drivers who have a conflicting timestamp (within MIN_HOURS_BETWEEN_TRIPS)
     const availableDrivers = dayDrivers.filter((driver) => {
@@ -202,9 +238,12 @@ export function assignTripsToDrivers(
     if (availableDrivers.length === 0) {
       // Check if it's because no drivers work that day, or all have time conflicts
       if (dayDrivers.length === 0) {
-        warnings.push(
-          `Trip ${trip.tripId}: No driver available on ${DAY_NAMES[trip.dayOfWeek]}`
-        );
+        const effectiveDayName = DAY_NAMES[effectiveDay];
+        const isNightShift = effectiveDay !== trip.dayOfWeek;
+        const dayInfo = isNightShift
+          ? `${effectiveDayName} (night shift into ${DAY_NAMES[trip.dayOfWeek]})`
+          : effectiveDayName;
+        warnings.push(`Trip ${trip.tripId}: No driver available on ${dayInfo}`);
       } else {
         const timeStr = trip.plannedArrivalTime || "unknown time";
         const dateStr = trip.tripDate.toISOString().split("T")[0];
@@ -215,22 +254,31 @@ export function assignTripsToDrivers(
       continue;
     }
 
-    // Select driver based on: 1) Priority (lower number = higher priority), 2) Load balancing within same priority
+    // Select driver based on: 1) Priority, 2) Load balancing, 3) Name (alphabetical)
     const selectedDriver = availableDrivers.reduce((bestDriver, driver) => {
       const bestPriority = bestDriver.priority ?? 2;
       const currentPriority = driver.priority ?? 2;
       const bestLoad = driverLoad.get(bestDriver.id) || 0;
       const currentLoad = driverLoad.get(driver.id) || 0;
 
-      // Higher priority (lower number) always wins
+      // 1. Higher priority (lower number) always wins
       if (currentPriority < bestPriority) {
         return driver;
       }
-      // Same priority: pick lower workload
-      if (currentPriority === bestPriority && currentLoad < bestLoad) {
+      if (currentPriority > bestPriority) {
+        return bestDriver;
+      }
+
+      // 2. Same priority: pick lower workload
+      if (currentLoad < bestLoad) {
         return driver;
       }
-      return bestDriver;
+      if (currentLoad > bestLoad) {
+        return bestDriver;
+      }
+
+      // 3. Same priority AND workload: pick by name (alphabetical)
+      return driver.name.localeCompare(bestDriver.name) < 0 ? driver : bestDriver;
     });
 
     const priorityLabel =
@@ -240,10 +288,16 @@ export function assignTripsToDrivers(
           ? "low"
           : "med";
 
+    // Build reasoning with night shift info if applicable
+    const isNightShift = effectiveDay !== trip.dayOfWeek;
+    const dayLabel = isNightShift
+      ? `${DAY_NAMES[effectiveDay]} night`
+      : DAY_NAMES[trip.dayOfWeek];
+
     assignments.push({
       tripId: trip.id,
       driverId: selectedDriver.id,
-      reasoning: `${DAY_NAMES[trip.dayOfWeek]} - ${selectedDriver.name} (${priorityLabel} priority)`,
+      reasoning: `${dayLabel} - ${selectedDriver.name} (${priorityLabel} priority)`,
     });
 
     // Track this driver's assignment timestamp (uses push for performance)
